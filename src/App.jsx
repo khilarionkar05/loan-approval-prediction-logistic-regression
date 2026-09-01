@@ -1,8 +1,9 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Header from './components/Header';
 import Footer from './components/Footer';
+import Home   from './pages/Home';
 
-/* Minimal placeholder pages – will be replaced as project grows */
+/* Placeholder for pages not yet implemented */
 function PlaceholderPage({ title }) {
   return (
     <main className="page-placeholder">
@@ -18,7 +19,7 @@ export default function App() {
       <div className="page-wrapper">
         <Header />
         <Routes>
-          <Route path="/"           element={<PlaceholderPage title="Home" />} />
+          <Route path="/"           element={<Home />} />
           <Route path="/prediction" element={<PlaceholderPage title="Prediction" />} />
           <Route path="/live-ml"    element={<PlaceholderPage title="Live ML" />} />
           <Route path="/analytics"  element={<PlaceholderPage title="Analytics" />} />
