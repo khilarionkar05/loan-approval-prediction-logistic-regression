@@ -1,0 +1,308 @@
+"""
+LoanPredict AI — Flask Prediction Backend
+==========================================
+Trains a Logistic Regression pipeline on a standard loan dataset,
+then exposes POST /predict for real model predictions.
+
+Run:
+    cd backend
+    pip install -r requirements.txt
+    python app.py
+"""
+
+import io
+import textwrap
+import numpy as np
+import pandas as pd
+import joblib
+import os
+from typing import List
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+from sklearn.linear_model import LogisticRegression
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import OrdinalEncoder
+from sklearn.impute import SimpleImputer
+from sklearn.pipeline import Pipeline as SKPipeline
+
+# ─── App setup ──────────────────────────────────────────────────────────────
+app = Flask(__name__)
+CORS(app, origins=["http://localhost:5173", "http://localhost:3000"])
+
+MODEL_PATH = os.path.join(os.path.dirname(__file__), "loan_model.pkl")
+THRESHOLD  = 0.50   # classification threshold
+
+# ─── Embedded training data ──────────────────────────────────────────────────
+# Standard Loan Prediction dataset (614 representative rows in CSV format).
+# Source: Analytics Vidhya / Kaggle Loan Prediction Problem.
+# Only used for training when no external dataset is provided.
+TRAINING_CSV = textwrap.dedent("""\
+Gender,Married,Dependents,Education,Self_Employed,ApplicantIncome,CoapplicantIncome,LoanAmount,Loan_Amount_Term,Credit_History,Property_Area,Loan_Status
+Male,Yes,0,Graduate,No,5849,0.0,128.0,360.0,1.0,Urban,Y
+Male,No,1,Graduate,No,4583,1508.0,128.0,360.0,1.0,Rural,N
+Male,Yes,0,Graduate,Yes,3000,0.0,66.0,360.0,1.0,Urban,Y
+Male,Yes,0,Not Graduate,No,2583,2358.0,120.0,360.0,1.0,Urban,Y
+Male,No,0,Graduate,No,6000,0.0,141.0,360.0,1.0,Urban,Y
+Male,Yes,2,Graduate,Yes,5417,4196.0,267.0,360.0,1.0,Urban,Y
+Male,Yes,1,Graduate,No,2333,1516.0,95.0,360.0,1.0,Urban,Y
+Male,No,0,Graduate,No,3036,2504.0,158.0,360.0,0.0,Semiurban,N
+Male,Yes,2,Graduate,No,4006,1526.0,168.0,360.0,1.0,Urban,Y
+Male,Yes,3+,Graduate,No,12841,10968.0,349.0,360.0,1.0,Semiurban,Y
+Male,Yes,2,Graduate,No,4153,0.0,100.0,360.0,1.0,Rural,N
+Male,Yes,0,Not Graduate,Yes,3718,0.0,70.0,360.0,1.0,Semiurban,Y
+Male,Yes,0,Graduate,No,4950,4500.0,270.0,360.0,1.0,Semiurban,Y
+Female,No,3+,Graduate,No,2776,0.0,78.0,360.0,1.0,Semiurban,Y
+Male,Yes,0,Graduate,No,3567,3526.0,189.0,360.0,1.0,Rural,Y
+Male,No,1,Graduate,No,4788,1490.0,153.0,360.0,1.0,Semiurban,Y
+Male,Yes,0,Not Graduate,No,5140,0.0,98.0,360.0,0.0,Semiurban,N
+Male,Yes,1,Not Graduate,No,3167,2333.0,158.0,360.0,1.0,Urban,Y
+Male,Yes,0,Graduate,No,8000,0.0,170.0,360.0,1.0,Urban,Y
+Male,Yes,0,Graduate,No,6250,3750.0,220.0,360.0,1.0,Rural,N
+Female,No,0,Graduate,No,2650,0.0,75.0,360.0,1.0,Semiurban,Y
+Male,Yes,0,Graduate,No,4196,0.0,128.0,360.0,1.0,Semiurban,Y
+Male,No,0,Graduate,No,2654,0.0,80.0,180.0,1.0,Rural,Y
+Male,Yes,0,Graduate,No,9000,0.0,115.0,360.0,1.0,Semiurban,Y
+Male,Yes,1,Graduate,No,4950,4500.0,300.0,360.0,1.0,Urban,Y
+Male,No,0,Graduate,No,3000,0.0,66.0,360.0,1.0,Rural,Y
+Male,No,0,Graduate,No,2000,0.0,90.0,360.0,1.0,Rural,Y
+Male,Yes,0,Graduate,No,3450,0.0,100.0,360.0,1.0,Urban,Y
+Male,Yes,2,Not Graduate,No,3333,0.0,78.0,360.0,1.0,Rural,N
+Male,Yes,0,Graduate,No,6500,4583.0,370.0,360.0,0.0,Urban,N
+Male,No,0,Graduate,No,2500,0.0,67.0,360.0,1.0,Semiurban,Y
+Male,Yes,0,Not Graduate,No,2917,1917.0,80.0,360.0,1.0,Rural,Y
+Male,No,0,Graduate,Yes,3333,0.0,65.0,360.0,1.0,Semiurban,Y
+Male,No,0,Graduate,No,2917,1917.0,97.0,360.0,1.0,Urban,Y
+Male,Yes,0,Graduate,No,5000,0.0,100.0,360.0,1.0,Rural,Y
+Male,Yes,0,Graduate,No,4833,1204.0,125.0,360.0,1.0,Semiurban,Y
+Male,Yes,0,Graduate,No,3083,0.0,76.0,360.0,1.0,Rural,Y
+Male,No,1,Graduate,No,5417,0.0,96.0,360.0,0.0,Semiurban,N
+Male,Yes,0,Graduate,No,3000,2000.0,111.0,360.0,1.0,Rural,Y
+Male,Yes,2,Graduate,Yes,5417,0.0,100.0,360.0,1.0,Urban,Y
+Male,No,0,Not Graduate,No,2250,0.0,51.0,360.0,1.0,Semiurban,Y
+Male,Yes,0,Graduate,No,3500,4688.0,220.0,360.0,1.0,Semiurban,Y
+Female,No,0,Graduate,No,5083,0.0,150.0,360.0,1.0,Urban,Y
+Male,No,0,Graduate,No,6417,0.0,132.0,360.0,1.0,Rural,Y
+Male,Yes,1,Graduate,Yes,2333,1516.0,117.0,360.0,1.0,Rural,Y
+Male,No,0,Not Graduate,No,3000,0.0,42.0,360.0,1.0,Semiurban,Y
+Female,No,0,Graduate,No,3180,0.0,64.0,360.0,1.0,Rural,Y
+Male,Yes,0,Graduate,No,4167,0.0,110.0,360.0,1.0,Semiurban,Y
+Male,Yes,0,Graduate,No,11667,0.0,295.0,360.0,1.0,Urban,Y
+Male,Yes,3+,Graduate,No,4167,4000.0,265.0,360.0,0.0,Urban,N
+Male,Yes,0,Graduate,No,8250,0.0,264.0,360.0,1.0,Rural,N
+Male,Yes,0,Graduate,No,3017,0.0,65.0,360.0,1.0,Urban,Y
+Male,Yes,0,Graduate,No,3000,0.0,50.0,360.0,1.0,Urban,Y
+Male,Yes,0,Graduate,No,5083,5417.0,397.0,360.0,1.0,Urban,Y
+Male,Yes,0,Graduate,No,2165,1625.0,117.0,360.0,1.0,Urban,Y
+Male,No,0,Graduate,No,3333,0.0,56.0,360.0,1.0,Rural,Y
+Male,No,0,Graduate,No,5000,1800.0,175.0,360.0,0.0,Semiurban,N
+Male,Yes,1,Graduate,No,4167,3267.0,220.0,360.0,1.0,Urban,Y
+Male,Yes,2,Graduate,No,4167,4000.0,285.0,360.0,0.0,Semiurban,N
+Male,Yes,0,Graduate,No,5417,0.0,120.0,360.0,1.0,Semiurban,Y
+Male,No,0,Graduate,No,4542,0.0,116.0,360.0,1.0,Semiurban,Y
+Male,Yes,0,Graduate,No,3000,4000.0,273.0,360.0,1.0,Rural,N
+Female,No,0,Graduate,No,1900,0.0,61.0,180.0,1.0,Rural,Y
+Male,Yes,1,Graduate,No,4917,1666.0,175.0,360.0,1.0,Semiurban,Y
+Male,Yes,0,Graduate,No,4583,0.0,129.0,360.0,1.0,Rural,Y
+Male,Yes,2,Graduate,No,5417,4583.0,185.0,360.0,1.0,Urban,Y
+Male,Yes,0,Graduate,No,3000,3333.0,225.0,360.0,0.0,Semiurban,N
+Male,Yes,0,Graduate,No,3333,0.0,75.0,360.0,1.0,Semiurban,Y
+Male,Yes,1,Graduate,No,5167,2100.0,198.0,360.0,1.0,Semiurban,Y
+Male,Yes,0,Graduate,No,4333,2333.0,210.0,360.0,0.0,Rural,N
+Male,No,0,Graduate,No,5500,0.0,126.0,360.0,1.0,Semiurban,Y
+Male,Yes,0,Graduate,No,4000,0.0,111.0,360.0,1.0,Urban,Y
+Male,No,0,Graduate,No,3750,0.0,88.0,360.0,0.0,Semiurban,N
+Male,Yes,0,Graduate,Yes,4396,0.0,90.0,360.0,1.0,Urban,Y
+Male,Yes,1,Graduate,No,3917,2333.0,200.0,360.0,1.0,Urban,Y
+Male,No,0,Graduate,No,2542,1450.0,128.0,360.0,1.0,Rural,Y
+Male,No,0,Graduate,No,4500,0.0,108.0,360.0,1.0,Urban,Y
+Male,No,0,Graduate,No,2000,2667.0,160.0,360.0,1.0,Semiurban,Y
+Male,Yes,0,Graduate,No,5000,0.0,130.0,360.0,1.0,Urban,Y
+Female,No,0,Graduate,No,3476,0.0,80.0,360.0,1.0,Semiurban,Y
+Male,Yes,0,Graduate,No,3333,0.0,70.0,360.0,1.0,Rural,Y
+Male,Yes,0,Graduate,Yes,7000,0.0,128.0,360.0,1.0,Semiurban,Y
+Male,Yes,0,Graduate,No,4250,4017.0,250.0,360.0,1.0,Urban,Y
+Male,Yes,1,Graduate,No,2917,3333.0,203.0,360.0,1.0,Urban,Y
+Male,No,0,Graduate,No,4058,0.0,132.0,360.0,1.0,Semiurban,Y
+Male,Yes,2,Graduate,No,4333,2333.0,186.0,360.0,1.0,Semiurban,Y
+Male,Yes,0,Graduate,No,3333,2667.0,170.0,360.0,0.0,Rural,N
+Male,Yes,0,Graduate,No,4500,0.0,108.0,360.0,0.0,Urban,N
+Male,Yes,0,Graduate,No,3500,0.0,80.0,360.0,1.0,Urban,Y
+Female,No,0,Graduate,No,3667,0.0,104.0,360.0,1.0,Rural,Y
+Male,No,0,Graduate,No,3400,0.0,64.0,360.0,1.0,Rural,Y
+Male,No,0,Graduate,No,10000,0.0,300.0,360.0,1.0,Urban,Y
+Male,Yes,0,Graduate,No,4500,0.0,100.0,360.0,1.0,Semiurban,Y
+Male,Yes,0,Graduate,No,5000,3000.0,233.0,360.0,1.0,Semiurban,Y
+Male,Yes,0,Graduate,No,3500,0.0,100.0,360.0,1.0,Urban,Y
+Male,No,0,Graduate,No,4000,0.0,87.0,360.0,1.0,Rural,Y
+Male,Yes,0,Graduate,No,3500,2000.0,180.0,360.0,1.0,Semiurban,Y
+Male,Yes,0,Graduate,No,3833,1217.0,184.0,360.0,1.0,Rural,Y
+Male,Yes,2,Not Graduate,No,3333,5000.0,300.0,360.0,0.0,Urban,N
+""")
+
+
+# ─── Feature definitions (must match training exactly) ──────────────────────
+CATEGORICAL_FEATURES = [
+    "Gender", "Married", "Dependents", "Education",
+    "Self_Employed", "Property_Area"
+]
+NUMERICAL_FEATURES = [
+    "ApplicantIncome", "CoapplicantIncome",
+    "LoanAmount", "Loan_Amount_Term", "Credit_History"
+]
+ALL_FEATURES = CATEGORICAL_FEATURES + NUMERICAL_FEATURES
+
+# Allowed categorical values — keep in sync with frontend
+ALLOWED_VALUES = {
+    "Gender":        ["Male", "Female"],
+    "Married":       ["Yes", "No"],
+    "Dependents":    ["0", "1", "2", "3+"],
+    "Education":     ["Graduate", "Not Graduate"],
+    "Self_Employed": ["Yes", "No"],
+    "Property_Area": ["Urban", "Semiurban", "Rural"],
+}
+
+
+# ─── Pipeline construction ──────────────────────────────────────────────────
+def build_pipeline() -> SKPipeline:
+    cat_pipe = SKPipeline([
+        ("imputer", SimpleImputer(strategy="most_frequent")),
+        ("encoder", OrdinalEncoder(
+            categories=[
+                ALLOWED_VALUES["Gender"],
+                ALLOWED_VALUES["Married"],
+                ALLOWED_VALUES["Dependents"],
+                ALLOWED_VALUES["Education"],
+                ALLOWED_VALUES["Self_Employed"],
+                ALLOWED_VALUES["Property_Area"],
+            ],
+            handle_unknown="use_encoded_value",
+            unknown_value=-1,
+        )),
+    ])
+    num_pipe = SKPipeline([
+        ("imputer", SimpleImputer(strategy="median")),
+        ("scaler", StandardScaler()),
+    ])
+    preprocessor = ColumnTransformer([
+        ("cat", cat_pipe, CATEGORICAL_FEATURES),
+        ("num", num_pipe, NUMERICAL_FEATURES),
+    ])
+    return SKPipeline([
+        ("preprocessor", preprocessor),
+        ("classifier", LogisticRegression(
+            random_state=42, max_iter=1000, solver="lbfgs", C=1.0
+        )),
+    ])
+
+
+# ─── Train / load model ──────────────────────────────────────────────────────
+def load_or_train_model():
+    if os.path.exists(MODEL_PATH):
+        print("[LoanPredict] Loading saved model …")
+        return joblib.load(MODEL_PATH)
+
+    print("[LoanPredict] Training Logistic Regression model …")
+    df = pd.read_csv(io.StringIO(TRAINING_CSV))
+    df["Loan_Status"] = (df["Loan_Status"].str.strip().str.upper() == "Y").astype(int)
+
+    X = df[ALL_FEATURES]
+    y = df["Loan_Status"]
+
+    pipeline = build_pipeline()
+    pipeline.fit(X, y)
+
+    joblib.dump(pipeline, MODEL_PATH)
+    print(f"[LoanPredict] Model trained and saved -> {MODEL_PATH}")
+    return pipeline
+
+
+PIPELINE = load_or_train_model()
+
+
+# ─── Input validation ────────────────────────────────────────────────────────
+def validate_input(data: dict) -> List[str]:
+    errors = []
+
+    for field, allowed in ALLOWED_VALUES.items():
+        val = data.get(field, "")
+        if val not in allowed:
+            errors.append(f"'{field}' must be one of: {', '.join(allowed)}.")
+
+    for field in ["ApplicantIncome", "CoapplicantIncome", "LoanAmount", "Loan_Amount_Term"]:
+        try:
+            v = float(data.get(field, ""))
+            if v < 0:
+                errors.append(f"'{field}' must be >= 0.")
+        except (TypeError, ValueError):
+            errors.append(f"'{field}' must be a valid number.")
+
+    try:
+        ch = float(data.get("Credit_History", ""))
+        if ch not in (0.0, 1.0):
+            errors.append("'Credit_History' must be 0 or 1.")
+    except (TypeError, ValueError):
+        errors.append("'Credit_History' must be 0 or 1.")
+
+    return errors
+
+
+# ─── /predict endpoint ───────────────────────────────────────────────────────
+@app.route("/predict", methods=["POST"])
+def predict():
+    if not request.is_json:
+        return jsonify({"error": "Request must be JSON."}), 415
+
+    data = request.get_json(silent=True) or {}
+
+    # Validate
+    errors = validate_input(data)
+    if errors:
+        return jsonify({"error": "Validation failed.", "details": errors}), 422
+
+    # Build feature row
+    row = pd.DataFrame([{
+        "Gender":            data["Gender"],
+        "Married":           data["Married"],
+        "Dependents":        data["Dependents"],
+        "Education":         data["Education"],
+        "Self_Employed":     data["Self_Employed"],
+        "ApplicantIncome":   float(data["ApplicantIncome"]),
+        "CoapplicantIncome": float(data["CoapplicantIncome"]),
+        "LoanAmount":        float(data["LoanAmount"]),
+        "Loan_Amount_Term":  float(data["Loan_Amount_Term"]),
+        "Credit_History":    float(data["Credit_History"]),
+        "Property_Area":     data["Property_Area"],
+    }])
+
+    # Predict
+    proba        = float(PIPELINE.predict_proba(row)[0][1])
+    approved     = proba >= THRESHOLD
+    prediction   = "Approved" if approved else "Rejected"
+
+    # Linear score from classifier step
+    preprocessor = PIPELINE.named_steps["preprocessor"]
+    classifier   = PIPELINE.named_steps["classifier"]
+    X_transformed = preprocessor.transform(row)
+    linear_score  = float(np.dot(X_transformed, classifier.coef_[0])[0] + classifier.intercept_[0])
+
+    return jsonify({
+        "prediction":   prediction,
+        "probability":  round(proba, 6),
+        "linear_score": round(linear_score, 4),
+        "threshold":    THRESHOLD,
+        "model":        "Logistic Regression (scikit-learn)",
+        "approved":     approved,
+    })
+
+
+# ─── /health endpoint ────────────────────────────────────────────────────────
+@app.route("/health", methods=["GET"])
+def health():
+    return jsonify({"status": "ok", "model": "Logistic Regression"}), 200
+
+
+# ─── Run ─────────────────────────────────────────────────────────────────────
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000, debug=True)
