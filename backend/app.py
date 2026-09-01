@@ -303,6 +303,86 @@ def health():
     return jsonify({"status": "ok", "model": "Logistic Regression"}), 200
 
 
+# ─── /analyze endpoint  (Live ML visualization) ──────────────────────────────
+# Returns the full LR calculation breakdown for the /live-ml page.
+@app.route("/analyze", methods=["POST"])
+def analyze():
+    if not request.is_json:
+        return jsonify({"error": "Request must be JSON."}), 415
+
+    data = request.get_json(silent=True) or {}
+
+    errors = validate_input(data)
+    if errors:
+        return jsonify({"error": "Validation failed.", "details": errors}), 422
+
+    row = pd.DataFrame([{
+        "Gender":            data["Gender"],
+        "Married":           data["Married"],
+        "Dependents":        data["Dependents"],
+        "Education":         data["Education"],
+        "Self_Employed":     data["Self_Employed"],
+        "ApplicantIncome":   float(data["ApplicantIncome"]),
+        "CoapplicantIncome": float(data["CoapplicantIncome"]),
+        "LoanAmount":        float(data["LoanAmount"]),
+        "Loan_Amount_Term":  float(data["Loan_Amount_Term"]),
+        "Credit_History":    float(data["Credit_History"]),
+        "Property_Area":     data["Property_Area"],
+    }])
+
+    preprocessor = PIPELINE.named_steps["preprocessor"]
+    classifier   = PIPELINE.named_steps["classifier"]
+
+    # Transform the input row through the same pipeline
+    X_proc = preprocessor.transform(row)
+    coef   = classifier.coef_[0]
+    intercept = float(classifier.intercept_[0])
+
+    # Feature names (cat first, then num — matches ColumnTransformer order)
+    feature_names = CATEGORICAL_FEATURES + NUMERICAL_FEATURES
+
+    processed_vals = X_proc[0].tolist()
+    coef_vals      = coef.tolist()
+
+    # Per-feature contribution = processed_value × coefficient
+    contributions = [round(float(pv) * float(cv), 6)
+                     for pv, cv in zip(processed_vals, coef_vals)]
+
+    # Linear score z = intercept + sum(contributions)
+    linear_score = float(np.dot(X_proc, coef)[0] + intercept)
+
+    # Sigmoid
+    import math
+    probability = 1.0 / (1.0 + math.exp(-linear_score))
+
+    approved   = probability >= THRESHOLD
+    prediction = "Approved" if approved else "Rejected"
+
+    # Raw input values for display
+    raw_values = [
+        data["Gender"], data["Married"], data["Dependents"],
+        data["Education"], data["Self_Employed"], data["Property_Area"],
+        str(data["ApplicantIncome"]), str(data["CoapplicantIncome"]),
+        str(data["LoanAmount"]), str(data["Loan_Amount_Term"]),
+        str(data["Credit_History"]),
+    ]
+
+    return jsonify({
+        "feature_names":      feature_names,
+        "raw_values":         raw_values,
+        "processed_values":   [round(v, 6) for v in processed_vals],
+        "coefficients":       [round(v, 6) for v in coef_vals],
+        "intercept":          round(intercept, 6),
+        "contributions":      contributions,
+        "linear_score":       round(linear_score, 6),
+        "probability":        round(probability, 6),
+        "threshold":          THRESHOLD,
+        "prediction":         prediction,
+        "approved":           approved,
+        "model":              "Logistic Regression (scikit-learn)",
+    })
+
+
 # ─── Run ─────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)

@@ -3,6 +3,7 @@ import Header     from './components/Header';
 import Footer     from './components/Footer';
 import Home       from './pages/Home';
 import Prediction from './pages/Prediction';
+import LiveML     from './pages/LiveML';
 
 /* Placeholder for pages not yet implemented */
 function PlaceholderPage({ title }) {
@@ -22,7 +23,7 @@ export default function App() {
         <Routes>
           <Route path="/"           element={<Home />} />
           <Route path="/prediction" element={<Prediction />} />
-          <Route path="/live-ml"    element={<PlaceholderPage title="Live ML" />} />
+          <Route path="/live-ml"    element={<LiveML />} />
           <Route path="/analytics"  element={<PlaceholderPage title="Analytics" />} />
           <Route path="/model"      element={<PlaceholderPage title="Model" />} />
           <Route path="/about"      element={<PlaceholderPage title="About" />} />
