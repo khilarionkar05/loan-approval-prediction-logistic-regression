@@ -477,6 +477,46 @@ def analytics_data():
     }), 200
 
 
+@app.route("/training-data", methods=["GET"])
+def training_data():
+    """
+    Returns real historical dataset rows for educational ML visualization.
+    Fields: ApplicantIncome, CoapplicantIncome, LoanAmount, Credit_History, Property_Area, Loan_Status.
+    """
+    df = get_training_dataframe()
+    total_records = len(df)
+    
+    # Extract real dataset rows cleanly
+    data_points = []
+    for _, row in df.iterrows():
+        status_clean = str(row.get("Loan_Status", "")).strip().upper()
+        is_approved = (status_clean == "Y" or status_clean == "1")
+        try:
+            app_inc = float(row.get("ApplicantIncome", 0))
+            coapp_inc = float(row.get("CoapplicantIncome", 0)) if pd.notnull(row.get("CoapplicantIncome")) else 0.0
+            loan_amt = float(row.get("LoanAmount", 0)) if pd.notnull(row.get("LoanAmount")) else 0.0
+            cred_hist = float(row.get("Credit_History", 1.0)) if pd.notnull(row.get("Credit_History")) else 1.0
+            prop_area = str(row.get("Property_Area", "Urban"))
+            
+            data_points.append({
+                "ApplicantIncome": app_inc,
+                "CoapplicantIncome": coapp_inc,
+                "LoanAmount": loan_amt,
+                "Credit_History": cred_hist,
+                "Property_Area": prop_area,
+                "Loan_Status": "Approved" if is_approved else "Rejected",
+                "approved": is_approved
+            })
+        except (ValueError, TypeError):
+            continue
+
+    return jsonify({
+        "total_records": total_records,
+        "displayed_records": len(data_points),
+        "data": data_points
+    }), 200
+
+
 # ─── Run ─────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)

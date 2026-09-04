@@ -5,7 +5,7 @@ const NAV_LINKS = [
   { label: 'Home',              to: '/'              },
   { label: 'Prediction',        to: '/prediction'    },
   { label: 'Live ML',           to: '/live-ml'       },
-  { label: 'Live Analysis',     to: '/live-analysis' },
+  { label: 'ML Visualization',  to: '/live-analysis' },
   { label: 'Analytics',         to: '/analytics'     },
   { label: 'Model Information', to: '/model-info'    },
   { label: 'About',             to: '/about'         },
