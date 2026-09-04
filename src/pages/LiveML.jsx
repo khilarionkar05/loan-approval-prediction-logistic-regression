@@ -178,7 +178,6 @@ export default function LiveML() {
   };
 
   const r = result;
-  const sigmoid = (z) => 1 / (1 + Math.exp(-z));
 
   return (
     <main className="lml-page">

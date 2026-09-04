@@ -5,16 +5,9 @@ import Home          from './pages/Home';
 import Prediction    from './pages/Prediction';
 import LiveML        from './pages/LiveML';
 import LiveAnalysis  from './pages/LiveAnalysis';
-
-/* Placeholder for pages not yet implemented */
-function PlaceholderPage({ title }) {
-  return (
-    <main className="page-placeholder">
-      <h1>{title}</h1>
-      <p>This page is coming soon.</p>
-    </main>
-  );
-}
+import Analytics     from './pages/Analytics';
+import ModelInfo     from './pages/ModelInfo';
+import About         from './pages/About';
 
 export default function App() {
   return (
@@ -26,10 +19,10 @@ export default function App() {
           <Route path="/prediction"    element={<Prediction />} />
           <Route path="/live-ml"       element={<LiveML />} />
           <Route path="/live-analysis" element={<LiveAnalysis />} />
-          <Route path="/analytics"     element={<PlaceholderPage title="Analytics Dashboard" />} />
-          <Route path="/model-info"    element={<PlaceholderPage title="Model Information" />} />
+          <Route path="/analytics"     element={<Analytics />} />
+          <Route path="/model-info"    element={<ModelInfo />} />
           <Route path="/model"         element={<Navigate to="/model-info" replace />} />
-          <Route path="/about"         element={<PlaceholderPage title="About Project" />} />
+          <Route path="/about"         element={<About />} />
         </Routes>
         <Footer />
       </div>

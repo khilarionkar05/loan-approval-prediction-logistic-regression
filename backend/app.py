@@ -32,7 +32,10 @@ app = Flask(__name__)
 CORS(app, origins=["http://localhost:5173", "http://localhost:3000"])
 
 MODEL_PATH = os.path.join(os.path.dirname(__file__), "loan_model.pkl")
+DATA_FILE  = os.path.join(os.path.dirname(__file__), "data", "loan_data.csv")
 THRESHOLD  = 0.50   # classification threshold
+
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
 
 # ─── Embedded training data ──────────────────────────────────────────────────
 # Standard Loan Prediction dataset (614 representative rows in CSV format).
@@ -198,13 +201,19 @@ def build_pipeline() -> SKPipeline:
 
 
 # ─── Train / load model ──────────────────────────────────────────────────────
+def get_training_dataframe():
+    if os.path.exists(DATA_FILE):
+        return pd.read_csv(DATA_FILE)
+    return pd.read_csv(io.StringIO(TRAINING_CSV))
+
+
 def load_or_train_model():
     if os.path.exists(MODEL_PATH):
         print("[LoanPredict] Loading saved model …")
         return joblib.load(MODEL_PATH)
 
     print("[LoanPredict] Training Logistic Regression model …")
-    df = pd.read_csv(io.StringIO(TRAINING_CSV))
+    df = get_training_dataframe()
     df["Loan_Status"] = (df["Loan_Status"].str.strip().str.upper() == "Y").astype(int)
 
     X = df[ALL_FEATURES]
@@ -381,6 +390,87 @@ def analyze():
         "approved":           approved,
         "model":              "Logistic Regression (scikit-learn)",
     })
+
+
+# ─── /analytics-data endpoint (Dataset & Model Analytics) ────────────────────
+@app.route("/analytics-data", methods=["GET"])
+def analytics_data():
+    df = get_training_dataframe()
+    df_clean = df.copy()
+    y_true = (df_clean["Loan_Status"].astype(str).str.strip().str.upper() == "Y").astype(int)
+    X = df_clean[ALL_FEATURES]
+
+    y_pred = PIPELINE.predict(X)
+
+    acc = float(accuracy_score(y_true, y_pred))
+    prec = float(precision_score(y_true, y_pred, zero_division=0))
+    rec = float(recall_score(y_true, y_pred, zero_division=0))
+    f1 = float(f1_score(y_true, y_pred, zero_division=0))
+    cm = confusion_matrix(y_true, y_pred).tolist()
+
+    approved_count = int(sum(y_true == 1))
+    rejected_count = int(sum(y_true == 0))
+    total_records = len(df_clean)
+
+    classifier = PIPELINE.named_steps["classifier"]
+    coef = classifier.coef_[0].tolist()
+    intercept = float(classifier.intercept_[0])
+
+    feature_names = CATEGORICAL_FEATURES + NUMERICAL_FEATURES
+    coefficients = [
+        {
+            "feature": f,
+            "type": "categorical" if f in CATEGORICAL_FEATURES else "numerical",
+            "coefficient": round(float(c), 6),
+            "abs_weight": round(float(abs(c)), 6),
+        }
+        for f, c in zip(feature_names, coef)
+    ]
+    coefficients.sort(key=lambda x: x["abs_weight"], reverse=True)
+
+    preview = df.head(10).fillna("").to_dict(orient="records")
+
+    return jsonify({
+        "dataset": {
+            "total_records": total_records,
+            "features_count": len(ALL_FEATURES),
+            "target_variable": "Loan_Status",
+            "approved_count": approved_count,
+            "rejected_count": rejected_count,
+            "approval_rate": round(approved_count / total_records, 4) if total_records > 0 else 0,
+            "preview": preview,
+            "categorical_features": CATEGORICAL_FEATURES,
+            "numerical_features": NUMERICAL_FEATURES,
+        },
+        "performance": {
+            "evaluation_type": "Training Set Evaluation (Real Model on Dataset)",
+            "accuracy": round(acc, 4),
+            "precision": round(prec, 4),
+            "recall": round(rec, 4),
+            "f1_score": round(f1, 4),
+            "confusion_matrix": {
+                "tn": cm[0][0],
+                "fp": cm[0][1],
+                "fn": cm[1][0],
+                "tp": cm[1][1],
+            }
+        },
+        "model_summary": {
+            "model_name": "Logistic Regression (scikit-learn)",
+            "solver": "lbfgs",
+            "regularization_C": 1.0,
+            "threshold": THRESHOLD,
+            "intercept": round(intercept, 6),
+            "coefficients": coefficients,
+            "pipeline_architecture": [
+                {"step": "Categorical Imputation", "method": "SimpleImputer(strategy='most_frequent')"},
+                {"step": "Categorical Encoding", "method": "OrdinalEncoder(explicit allowed category lists)"},
+                {"step": "Numerical Imputation", "method": "SimpleImputer(strategy='median')"},
+                {"step": "Numerical Scaling", "method": "StandardScaler(zero mean, unit variance)"},
+                {"step": "Classification", "method": "LogisticRegression(solver='lbfgs', C=1.0, max_iter=1000)"}
+            ]
+        }
+    }), 200
 
 
 # ─── Run ─────────────────────────────────────────────────────────────────────

@@ -4,7 +4,7 @@ const PROJECT_LINKS = [
   { label: 'Home',             to: '/'          },
   { label: 'Prediction Model', to: '/prediction' },
   { label: 'Live ML',          to: '/live-ml'   },
-  { label: 'Methodology',      to: '/model'     },
+  { label: 'Methodology',      to: '/model-info' },
 ];
 
 const LEGAL_LINKS = [
