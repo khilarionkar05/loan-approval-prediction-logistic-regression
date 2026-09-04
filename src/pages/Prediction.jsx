@@ -209,6 +209,14 @@ export default function Prediction() {
       if (!data.prediction || data.probability == null) {
         throw new Error('Incomplete response from prediction service.');
       }
+
+      // Persist complete real ML analysis in sessionStorage for Live ML visualization
+      try {
+        sessionStorage.setItem('loanPredictMLAnalysis', JSON.stringify(data));
+      } catch (storageErr) {
+        console.warn('Unable to save analysis to sessionStorage:', storageErr);
+      }
+
       setResult(data);
       setStatus('success');
     } catch (err) {

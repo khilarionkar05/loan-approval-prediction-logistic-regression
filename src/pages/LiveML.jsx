@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 
 /* ─── Constants (mirror Prediction.jsx exactly) ─────────────────────────── */
 const DEPENDENTS_OPTIONS = ['0', '1', '2', '3+'];
@@ -20,6 +21,7 @@ const INITIAL_FORM = {
   Loan_Amount_Term: '', Credit_History: '', Property_Area: '',
 };
 const ANALYZE_URL = 'http://localhost:5000/analyze';
+const STORAGE_KEY = 'loanPredictMLAnalysis';
 
 /* ─── Validation (same rules as Prediction page) ────────────────────────── */
 function validate(form) {
@@ -115,14 +117,50 @@ function StepCard({ num, title, desc, visible, children }) {
   );
 }
 
+function loadStoredAnalysis() {
+  if (typeof window === 'undefined') return null;
+  try {
+    const stored = sessionStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (parsed && parsed.prediction && parsed.probability != null && parsed.feature_names) {
+        return parsed;
+      }
+    }
+  } catch {
+    sessionStorage.removeItem(STORAGE_KEY);
+  }
+  return null;
+}
+
 /* ─── Main LiveML page ──────────────────────────────────────────────────── */
 export default function LiveML() {
-  const [form,     setForm]    = useState(INITIAL_FORM);
+  const [initialData] = useState(() => loadStoredAnalysis());
+  const [form,     setForm]    = useState(() => {
+    if (initialData?.applicant) {
+      const app = initialData.applicant;
+      return {
+        Gender: app.Gender || '',
+        Married: app.Married || '',
+        Dependents: app.Dependents || '',
+        Education: app.Education || '',
+        Self_Employed: app.Self_Employed || '',
+        Property_Area: app.Property_Area || '',
+        ApplicantIncome: app.ApplicantIncome != null ? String(app.ApplicantIncome) : '',
+        CoapplicantIncome: app.CoapplicantIncome != null ? String(app.CoapplicantIncome) : '',
+        LoanAmount: app.LoanAmount != null ? String(app.LoanAmount) : '',
+        Loan_Amount_Term: app.Loan_Amount_Term != null ? String(app.Loan_Amount_Term) : '',
+        Credit_History: app.Credit_History != null ? String(app.Credit_History) : '',
+      };
+    }
+    return INITIAL_FORM;
+  });
   const [errors,   setErrors]  = useState({});
-  const [status,   setStatus]  = useState('idle');  // idle|loading|done|error
-  const [result,   setResult]  = useState(null);
+  const [status,   setStatus]  = useState(() => initialData ? 'done' : 'idle');
+  const [result,   setResult]  = useState(() => initialData);
   const [apiErr,   setApiErr]  = useState('');
-  const [visStep,  setVisStep] = useState(0);  // which steps are visible (0 = none)
+  const [visStep,  setVisStep] = useState(() => initialData ? 10 : 0);
+  const [hasStored, setHasStored] = useState(() => !!initialData);
   const timerRef = useRef([]);
 
   const setField = (k) => (v) => {
@@ -133,14 +171,17 @@ export default function LiveML() {
   /* Clear timers on unmount */
   useEffect(() => () => timerRef.current.forEach(clearTimeout), []);
 
+  /* Reset / Clear Analysis action: clears state & removes sessionStorage key */
   const handleReset = () => {
     timerRef.current.forEach(clearTimeout);
+    sessionStorage.removeItem(STORAGE_KEY);
     setForm(INITIAL_FORM);
     setErrors({});
     setResult(null);
     setStatus('idle');
     setApiErr('');
     setVisStep(0);
+    setHasStored(false);
   };
 
   const handleRun = async (e) => {
@@ -175,10 +216,18 @@ export default function LiveML() {
       const data = await res.json();
       setResult(data);
       setStatus('done');
+      setHasStored(true);
 
-      // Stagger step reveal: steps 1–7 appear 350ms apart
-      for (let s = 1; s <= 7; s++) {
-        const t = setTimeout(() => setVisStep(s), s * 350);
+      // Persist to sessionStorage
+      try {
+        sessionStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      } catch (stErr) {
+        console.warn('Failed to save to sessionStorage', stErr);
+      }
+
+      // Stagger step reveal: steps 1–10 appear 250ms apart
+      for (let s = 1; s <= 10; s++) {
+        const t = setTimeout(() => setVisStep(s), s * 250);
         timerRef.current.push(t);
       }
     } catch (err) {
@@ -198,9 +247,17 @@ export default function LiveML() {
       {/* ── Page header ── */}
       <div className="lml-page-head">
         <div className="lml-head-inner">
-          <div className="lml-badge" role="note">
-            <span className="material-symbols-outlined lml-badge-icon">play_circle</span>
-            LIVE MODEL VISUALIZATION
+          <div className="lml-head-top">
+            <div className="lml-badge" role="note">
+              <span className="material-symbols-outlined lml-badge-icon">play_circle</span>
+              LIVE MODEL VISUALIZATION
+            </div>
+            {hasStored && (
+              <span className="lml-sync-badge">
+                <span className="material-symbols-outlined" style={{fontSize:'14px'}}>sync</span>
+                Synced with Prediction
+              </span>
+            )}
           </div>
           <h1 className="lml-title">Live Logistic Regression</h1>
           <p className="lml-subtitle">
@@ -218,7 +275,7 @@ export default function LiveML() {
             <span className="material-symbols-outlined lml-card-icon">input</span>
             <h2 className="lml-card-title">Applicant Data</h2>
           </div>
-          <p className="lml-card-note">Enter applicant details, then click <strong>Run Live Analysis</strong>.</p>
+          <p className="lml-card-note">Enter applicant details, or load a prediction from the Prediction page.</p>
 
           <form onSubmit={handleRun} noValidate>
             <div className="lml-grid-2">
@@ -230,7 +287,7 @@ export default function LiveML() {
               <Sel id="lml-Area"      label="Property Area" value={form.Property_Area} onChange={setField('Property_Area')} options={PROPERTY_OPTIONS}         error={errors.Property_Area} />
               <Num id="lml-AppInc"    label="Applicant Income (₹/month)"    value={form.ApplicantIncome}   onChange={setField('ApplicantIncome')}   error={errors.ApplicantIncome}   placeholder="e.g. 50000" showINR />
               <Num id="lml-CoInc"     label="Co-applicant Income (₹/month)" value={form.CoapplicantIncome} onChange={setField('CoapplicantIncome')} error={errors.CoapplicantIncome} placeholder="e.g. 20000" showINR />
-              <Num id="lml-Loan"      label="Loan Amount (₹)"               value={form.LoanAmount}        onChange={setField('LoanAmount')}        error={errors.LoanAmount}        placeholder="e.g. 500000" showINR hint="Enter the total loan amount in rupees (e.g. ₹5,00,000 → enter 500000)" />
+              <Num id="lml-Loan"      label="Loan Amount (₹)"               value={form.LoanAmount}        onChange={setField('LoanAmount')}        error={errors.LoanAmount}        placeholder="e.g. 500000" showINR hint="Enter total loan in rupees (e.g. ₹5,00,000 → enter 500000)" />
               <Sel id="lml-Term"      label="Loan Term"     value={form.Loan_Amount_Term} onChange={setField('Loan_Amount_Term')} options={LOAN_TERM_OPTIONS}     error={errors.Loan_Amount_Term} />
               <Sel id="lml-Credit"    label="Credit History" value={form.Credit_History} onChange={setField('Credit_History')} options={CREDIT_OPTIONS}         error={errors.Credit_History} />
             </div>
@@ -244,8 +301,8 @@ export default function LiveML() {
                   <><span className="material-symbols-outlined">play_arrow</span>Run Live Analysis</>
                 )}
               </button>
-              <button id="btn-reset-lml" type="button" className="lml-btn-reset" onClick={handleReset}>
-                <span className="material-symbols-outlined">refresh</span>Reset
+              <button id="btn-reset-lml" type="button" className="lml-btn-reset" onClick={handleReset} title="Clear saved analysis from session">
+                <span className="material-symbols-outlined">refresh</span>Reset Analysis
               </button>
             </div>
           </form>
@@ -254,25 +311,29 @@ export default function LiveML() {
         {/* RIGHT: Visualization panel */}
         <div className="lml-vis-panel" aria-live="polite" aria-label="Logistic Regression visualization">
 
-          {/* Idle */}
+          {/* Empty / Idle State */}
           {status === 'idle' && (
             <div className="lml-idle">
               <span className="material-symbols-outlined lml-idle-icon">model_training</span>
-              <h3>Ready to Visualize Logistic Regression</h3>
-              <p>Enter applicant data and click <strong>Run Live Analysis</strong> to see how the model transforms the inputs into a prediction.</p>
+              <h3>No Prediction Analysis Available</h3>
+              <p>Make a prediction on the Prediction page to view the complete real-time ML processing here, or enter applicant data and click <strong>Run Live Analysis</strong>.</p>
+              <Link to="/prediction" className="lml-btn-goto-pred">
+                <span className="material-symbols-outlined">psychology</span>
+                Go to Prediction Page
+              </Link>
             </div>
           )}
 
-          {/* Loading */}
+          {/* Loading State */}
           {status === 'loading' && (
             <div className="lml-idle">
               <span className="material-symbols-outlined lml-idle-icon lml-spin">progress_activity</span>
               <h3>Running Logistic Regression…</h3>
-              <p>The model is processing your applicant data.</p>
+              <p>The trained model is processing your applicant data.</p>
             </div>
           )}
 
-          {/* Error */}
+          {/* Error State */}
           {status === 'error' && (
             <div className="lml-error" role="alert">
               <span className="material-symbols-outlined">error</span>
@@ -284,19 +345,66 @@ export default function LiveML() {
             </div>
           )}
 
-          {/* Results — step-by-step */}
+          {/* Results — Complete 10-Step ML Pipeline */}
           {status === 'done' && r && (
             <div className="lml-steps">
 
-              {/* STEP 1: Features */}
-              <StepCard num="1" title="Feature Preprocessing"
-                desc="Raw applicant values encoded into numerical model inputs."
+              {/* STEP 1: Applicant Input Data */}
+              <StepCard num="1" title="Applicant Input Data"
+                desc="Raw values submitted by the applicant."
                 visible={visStep >= 1}>
+                <div className="lml-input-grid">
+                  <div className="lml-input-chip"><span className="chip-lbl">Gender:</span> <strong>{r.applicant?.Gender || r.raw_values?.[0]}</strong></div>
+                  <div className="lml-input-chip"><span className="chip-lbl">Married:</span> <strong>{r.applicant?.Married || r.raw_values?.[1]}</strong></div>
+                  <div className="lml-input-chip"><span className="chip-lbl">Dependents:</span> <strong>{r.applicant?.Dependents || r.raw_values?.[2]}</strong></div>
+                  <div className="lml-input-chip"><span className="chip-lbl">Education:</span> <strong>{r.applicant?.Education || r.raw_values?.[3]}</strong></div>
+                  <div className="lml-input-chip"><span className="chip-lbl">Self Employed:</span> <strong>{r.applicant?.Self_Employed || r.raw_values?.[4]}</strong></div>
+                  <div className="lml-input-chip"><span className="chip-lbl">Property Area:</span> <strong>{r.applicant?.Property_Area || r.raw_values?.[5]}</strong></div>
+                  <div className="lml-input-chip"><span className="chip-lbl">Applicant Income:</span> <strong>₹{Number(r.applicant?.ApplicantIncome ?? r.raw_values?.[6]).toLocaleString('en-IN')}/mo</strong></div>
+                  <div className="lml-input-chip"><span className="chip-lbl">Co-applicant Income:</span> <strong>₹{Number(r.applicant?.CoapplicantIncome ?? r.raw_values?.[7]).toLocaleString('en-IN')}/mo</strong></div>
+                  <div className="lml-input-chip highlight-chip"><span className="chip-lbl">Loan Amount (Entered):</span> <strong>₹{Number(r.raw_loan_amount ?? (Number(r.raw_values?.[8]) >= 1000 ? r.raw_values[8] : Number(r.raw_values[8])*1000)).toLocaleString('en-IN')}</strong></div>
+                  <div className="lml-input-chip"><span className="chip-lbl">Loan Term:</span> <strong>{r.applicant?.Loan_Amount_Term || r.raw_values?.[9]} months</strong></div>
+                  <div className="lml-input-chip"><span className="chip-lbl">Credit History:</span> <strong>{Number(r.applicant?.Credit_History ?? r.raw_values?.[10]) === 1 ? '1 (Good)' : '0 (Poor)'}</strong></div>
+                </div>
+              </StepCard>
+
+              {/* STEP 2: Input Normalization */}
+              <StepCard num="2" title="Input Normalization (Model Units)"
+                desc="Converting real-world rupee inputs to the exact units expected by the trained dataset."
+                visible={visStep >= 2}>
+                <div className="norm-card">
+                  <div className="norm-row">
+                    <div className="norm-col">
+                      <span className="norm-badge-lbl">User Entered Amount</span>
+                      <div className="norm-val mono">₹{Number(r.raw_loan_amount ?? 500000).toLocaleString('en-IN')}</div>
+                      <span className="norm-sub">Full rupee value</span>
+                    </div>
+                    <div className="norm-arrow-col">
+                      <span className="material-symbols-outlined norm-arrow">arrow_forward</span>
+                      <span className="norm-formula">divide by 1,000</span>
+                    </div>
+                    <div className="norm-col">
+                      <span className="norm-badge-lbl">Model-Facing Unit</span>
+                      <div className="norm-val mono norm-val--model">{(r.model_loan_amount ?? 500.0).toFixed(1)}</div>
+                      <span className="norm-sub">Thousands of rupees (₹{Number(r.model_loan_amount ?? 500).toFixed(1)}k)</span>
+                    </div>
+                  </div>
+                  <p className="norm-note">
+                    <span className="material-symbols-outlined" style={{fontSize:'16px'}}>info</span>
+                    The dataset represents <code>LoanAmount</code> in thousands of rupees (mean: 146.3, max: 397). Entering ₹5,00,000 is safely converted once by the backend to <strong>500.0 model units</strong> before entering the preprocessing pipeline.
+                  </p>
+                </div>
+              </StepCard>
+
+              {/* STEP 3: Feature Preparation / Encoding */}
+              <StepCard num="3" title="Feature Preparation & Encoding"
+                desc="Categorical variables encoded into numerical indices."
+                visible={visStep >= 3}>
                 <div className="feat-table">
                   <div className="feat-row feat-row--head">
-                    <span>Feature</span><span>Raw Value</span><span>Processed</span>
+                    <span>Categorical Feature</span><span>Raw Input</span><span>Encoded Index</span>
                   </div>
-                  {r.feature_names.map((name, i) => (
+                  {r.feature_names.slice(0, 6).map((name, i) => (
                     <div key={name} className="feat-row">
                       <span className="feat-name">{name.replace(/_/g,' ')}</span>
                       <span className="feat-raw">{r.raw_values[i]}</span>
@@ -306,10 +414,55 @@ export default function LiveML() {
                 </div>
               </StepCard>
 
-              {/* STEP 2: Coefficients */}
-              <StepCard num="2" title="Model Coefficients"
-                desc="Weights learned by Logistic Regression during training."
-                visible={visStep >= 2}>
+              {/* STEP 4: Preprocessing & StandardScaler */}
+              <StepCard num="4" title="Numerical Preprocessing (StandardScaler)"
+                desc="Numerical features scaled to zero mean and unit variance: z = (x - μ) / σ."
+                visible={visStep >= 4}>
+                <div className="feat-table">
+                  <div className="feat-row feat-row--head">
+                    <span>Numerical Feature</span><span>Model Input (x)</span><span>Scaled Value (z)</span>
+                  </div>
+                  {r.feature_names.slice(6).map((name, i) => {
+                    const idx = i + 6;
+                    return (
+                      <div key={name} className="feat-row">
+                        <span className="feat-name">{name.replace(/_/g,' ')}</span>
+                        <span className="feat-raw mono">{r.raw_values[idx]}</span>
+                        <span className="feat-proc mono">{r.processed_values[idx].toFixed(4)}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </StepCard>
+
+              {/* STEP 5: Logistic Regression Model */}
+              <StepCard num="5" title="Logistic Regression Model Information"
+                desc="Trained binary classification model configuration and parameters."
+                visible={visStep >= 5}>
+                <div className="model-summary-grid">
+                  <div className="summary-item">
+                    <span className="summary-lbl">Model Architecture:</span>
+                    <span className="summary-val">{r.model || 'Logistic Regression (scikit-learn)'}</span>
+                  </div>
+                  <div className="summary-item">
+                    <span className="summary-lbl">Solver & Regularization:</span>
+                    <span className="summary-val">L-BFGS (C=1.0, L2 Penalty)</span>
+                  </div>
+                  <div className="summary-item">
+                    <span className="summary-lbl">Decision Threshold:</span>
+                    <span className="summary-val mono">{(r.threshold ?? 0.5).toFixed(2)}</span>
+                  </div>
+                  <div className="summary-item">
+                    <span className="summary-lbl">Intercept (β₀):</span>
+                    <span className="summary-val mono">{r.intercept >= 0 ? '+' : ''}{(r.intercept ?? 0).toFixed(6)}</span>
+                  </div>
+                </div>
+              </StepCard>
+
+              {/* STEP 6: Feature Coefficients */}
+              <StepCard num="6" title="Learned Feature Coefficients (β)"
+                desc="Weights learned by Logistic Regression during dataset training."
+                visible={visStep >= 6}>
                 <div className="coef-table">
                   <div className="feat-row feat-row--head">
                     <span>Feature</span><span>Coefficient (β)</span>
@@ -331,10 +484,10 @@ export default function LiveML() {
                 </div>
               </StepCard>
 
-              {/* STEP 3: Weighted contributions */}
-              <StepCard num="3" title="Weighted Contributions"
-                desc="Each feature's processed value multiplied by its coefficient."
-                visible={visStep >= 3}>
+              {/* STEP 7: Feature Contributions */}
+              <StepCard num="7" title="Weighted Feature Contributions (βᵢ × xᵢ)"
+                desc="Each feature's transformed value multiplied by its trained coefficient."
+                visible={visStep >= 7}>
                 <div className="contrib-table">
                   <div className="feat-row feat-row--head">
                     <span>Feature</span><span>Value × Coef</span><span>Contribution</span>
@@ -351,7 +504,7 @@ export default function LiveML() {
                     </div>
                   ))}
                   <div className="feat-row feat-row--intercept">
-                    <span className="feat-name">Intercept</span>
+                    <span className="feat-name">Intercept (β₀)</span>
                     <span className="contrib-calc mono">—</span>
                     <span className={`contrib-val mono ${r.intercept >= 0 ? 'coef-pos' : 'coef-neg'}`}>
                       {r.intercept >= 0 ? '+' : ''}{r.intercept.toFixed(4)}
@@ -360,65 +513,59 @@ export default function LiveML() {
                 </div>
               </StepCard>
 
-              {/* STEP 4: Linear Score */}
-              <StepCard num="4" title="Linear Score  z = Σ (βᵢxᵢ) + β₀"
-                desc="Weighted sum of all contributions plus the intercept."
-                visible={visStep >= 4}>
+              {/* STEP 8: Linear Decision Score (z) */}
+              <StepCard num="8" title="Linear Decision Score  z = β₀ + Σ(βᵢxᵢ)"
+                desc="The raw log-odds score produced by the linear combination."
+                visible={visStep >= 8}>
                 <div className="math-box">
                   <div className="math-row">
                     <span className="math-label">z</span>
                     <span className="math-eq">=</span>
-                    <span className="math-val mono">{r.linear_score.toFixed(6)}</span>
+                    <span className="math-val mono">{(r.linear_score_exact ?? r.linear_score).toFixed(6)}</span>
                   </div>
                   <p className="math-note">
-                    Sum of {r.contributions.length} contributions ({r.contributions.reduce((a,b)=>a+b,0).toFixed(4)}) + intercept ({r.intercept.toFixed(4)})
+                    Sum of all feature contributions ({r.contributions.reduce((a,b)=>a+b,0).toFixed(4)}) + intercept ({r.intercept.toFixed(4)}) = {(r.linear_score_exact ?? r.linear_score).toFixed(4)}
                   </p>
                 </div>
               </StepCard>
 
-              {/* STEP 5: Sigmoid */}
-              <StepCard num="5" title="Sigmoid Function  σ(z) = 1 / (1 + e⁻ᶻ)"
-                desc="Converts the linear score into a probability between 0 and 1."
-                visible={visStep >= 5}>
+              {/* STEP 9: Sigmoid & Probability */}
+              <StepCard num="9" title="Sigmoid Activation  σ(z) = 1 / (1 + e⁻ᶻ)"
+                desc="Converts the real-valued decision score into a calibrated probability."
+                visible={visStep >= 9}>
                 <div className="math-box">
                   <div className="math-row">
-                    <span className="math-label">σ({r.linear_score.toFixed(4)})</span>
+                    <span className="math-label">σ({Number(r.linear_score).toFixed(4)})</span>
                     <span className="math-eq">=</span>
                     <span className="math-val mono">
-                      1 / (1 + e<sup>−{r.linear_score.toFixed(4)}</sup>)
+                      1 / (1 + e<sup>−{Number(r.linear_score).toFixed(4)}</sup>)
                     </span>
                   </div>
                   <div className="math-row">
-                    <span className="math-label">P(y=1|x)</span>
+                    <span className="math-label">P(Approved | x)</span>
                     <span className="math-eq">=</span>
-                    <span className="math-val mono sig-result">{r.probability.toFixed(6)}</span>
+                    <span className="math-val mono sig-result">{(r.probability * 100).toFixed(2)}%</span>
                   </div>
                 </div>
-              </StepCard>
-
-              {/* STEP 6: Probability gauge */}
-              <StepCard num="6" title="Approval Probability"
-                desc="The model's estimated probability of loan approval."
-                visible={visStep >= 6}>
-                <div className="gauge-section">
+                <div className="gauge-section" style={{marginTop:'14px'}}>
                   <ProbGauge prob={r.probability} approved={r.approved} />
                   <div className="gauge-detail">
                     <div className="gauge-detail-row">
-                      <span>P(Approved)</span>
+                      <span>Approval Probability:</span>
                       <span className="mono">{(r.probability * 100).toFixed(2)}%</span>
                     </div>
                     <div className="gauge-detail-row">
-                      <span>P(Rejected)</span>
+                      <span>Rejection Probability:</span>
                       <span className="mono">{((1 - r.probability) * 100).toFixed(2)}%</span>
                     </div>
                   </div>
                 </div>
               </StepCard>
 
-              {/* STEP 7: Threshold + Final Decision */}
-              <StepCard num="7" title="Decision Threshold"
-                desc="Probability is compared against the configured threshold."
-                visible={visStep >= 7}>
+              {/* STEP 10: Threshold Decision & Final Verdict */}
+              <StepCard num="10" title="Decision Threshold & Final Verdict"
+                desc="Compares predicted probability against classification threshold θ = 0.50."
+                visible={visStep >= 10}>
                 <div className="decision-box">
                   <div className="threshold-row">
                     <div className="th-item">
@@ -439,7 +586,7 @@ export default function LiveML() {
                     </div>
                   </div>
                   <p className="decision-rule">
-                    Decision rule: <code>P(y=1|x) ≥ θ</code> → Approved, otherwise Rejected
+                    Decision rule: <code>P(Approved) ≥ 0.50</code> → <strong>Approved</strong>, otherwise <strong>Rejected</strong>.
                   </p>
                 </div>
               </StepCard>
@@ -562,9 +709,6 @@ export default function LiveML() {
           font-size: 44px; color: var(--text-light);
           font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 44;
         }
-        .lml-idle h3 { font-size: 1rem; font-weight: 700; color: var(--text); }
-        .lml-idle p  { font-size: 0.85rem; color: var(--text-muted); line-height: 1.6; max-width: 360px; }
-
         .lml-error {
           background: #fef2f2; border: 1px solid #fecaca; border-radius: 14px;
           padding: 40px 24px; text-align: center;
@@ -581,6 +725,89 @@ export default function LiveML() {
           cursor: pointer; transition: background .15s;
         }
         .lml-btn-retry:hover { background: #b91c1c; }
+
+        /* Head top and sync badge */
+        .lml-head-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+        .lml-sync-badge {
+          display: inline-flex; align-items: center; gap: 5px;
+          background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0;
+          padding: 4px 10px; border-radius: 999px; font-size: 0.73rem; font-weight: 600;
+        }
+
+        /* Empty state CTA button */
+        .lml-btn-goto-pred {
+          display: inline-flex; align-items: center; gap: 7px;
+          margin-top: 14px; padding: 9px 18px;
+          background: var(--primary); color: #fff; text-decoration: none;
+          border-radius: var(--radius); font-size: 0.84rem; font-weight: 600;
+          box-shadow: var(--shadow-sm); transition: background .15s, transform .1s;
+        }
+        .lml-btn-goto-pred:hover { background: var(--primary-dark); transform: translateY(-1px); }
+
+        /* Step 1: Input chip grid */
+        .lml-input-grid {
+          display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+          gap: 8px; font-size: 0.79rem;
+        }
+        .lml-input-chip {
+          background: var(--surface-alt); border: 1px solid var(--border);
+          border-radius: 6px; padding: 7px 10px;
+          display: flex; flex-direction: column; gap: 2px;
+        }
+        .lml-input-chip.highlight-chip {
+          background: var(--primary-light); border-color: rgba(37,99,235,0.25);
+        }
+        .chip-lbl { font-size: 0.7rem; color: var(--text-muted); font-weight: 500; }
+
+        /* Step 2: Normalization visual card */
+        .norm-card {
+          background: var(--surface-alt); border: 1px solid var(--border);
+          border-radius: 8px; padding: 14px; display: flex; flex-direction: column; gap: 12px;
+        }
+        .norm-row {
+          display: flex; align-items: center; justify-content: space-around; gap: 12px; flex-wrap: wrap;
+        }
+        .norm-col {
+          display: flex; flex-direction: column; align-items: center; text-align: center; gap: 3px;
+        }
+        .norm-badge-lbl {
+          font-size: 0.69rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;
+        }
+        .norm-val {
+          font-size: 1.15rem; font-weight: 800; color: var(--text);
+        }
+        .norm-val--model {
+          color: var(--primary); font-size: 1.25rem;
+        }
+        .norm-sub { font-size: 0.72rem; color: var(--text-muted); }
+        .norm-arrow-col {
+          display: flex; flex-direction: column; align-items: center; gap: 2px;
+        }
+        .norm-arrow { font-size: 24px; color: var(--primary); }
+        .norm-formula {
+          font-size: 0.68rem; font-weight: 600; color: var(--text-muted); background: var(--surface);
+          padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border);
+        }
+        .norm-note {
+          font-size: 0.75rem; color: var(--text-muted); line-height: 1.45;
+          display: flex; align-items: flex-start; gap: 6px;
+          border-top: 1px solid var(--border); padding-top: 10px; margin: 0;
+        }
+        .norm-note code {
+          background: var(--surface); padding: 1px 4px; border-radius: 3px; font-size: 0.74rem;
+        }
+
+        /* Step 5: Model summary grid */
+        .model-summary-grid {
+          display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+          gap: 10px; font-size: 0.8rem;
+        }
+        .summary-item {
+          background: var(--surface-alt); border: 1px solid var(--border);
+          border-radius: 6px; padding: 8px 12px; display: flex; flex-direction: column; gap: 3px;
+        }
+        .summary-lbl { font-size: 0.7rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; }
+        .summary-val { font-size: 0.85rem; font-weight: 700; color: var(--text); }
 
         /* ── Step cards ── */
         .lml-steps { display: flex; flex-direction: column; gap: 12px; }

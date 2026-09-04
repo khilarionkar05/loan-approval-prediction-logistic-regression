@@ -257,6 +257,106 @@ def validate_input(data: dict) -> List[str]:
     return errors
 
 
+# ─── Full ML analysis computation (Single Source of Truth) ───────────────────
+def compute_full_analysis(data: dict) -> dict:
+    """
+    Executes the trained scikit-learn Logistic Regression pipeline on the given
+    input data and extracts all intermediate mathematical and structural details
+    for full real-time model visualization.
+    """
+    raw_loan = float(data["LoanAmount"])
+    # Normalize LoanAmount if user entered in whole rupees (>= 1000)
+    loan_amount = raw_loan / 1000.0 if raw_loan >= 1000.0 else raw_loan
+
+    row = pd.DataFrame([{
+        "Gender":            data["Gender"],
+        "Married":           data["Married"],
+        "Dependents":        data["Dependents"],
+        "Education":         data["Education"],
+        "Self_Employed":     data["Self_Employed"],
+        "ApplicantIncome":   float(data["ApplicantIncome"]),
+        "CoapplicantIncome": float(data["CoapplicantIncome"]),
+        "LoanAmount":        loan_amount,
+        "Loan_Amount_Term":  float(data["Loan_Amount_Term"]),
+        "Credit_History":    float(data["Credit_History"]),
+        "Property_Area":     data["Property_Area"],
+    }])
+
+    preprocessor = PIPELINE.named_steps["preprocessor"]
+    classifier   = PIPELINE.named_steps["classifier"]
+
+    # Preprocessing sub-pipelines
+    cat_pipe = preprocessor.named_transformers_["cat"]
+    num_pipe = preprocessor.named_transformers_["num"]
+
+    cat_encoded = cat_pipe.transform(row[CATEGORICAL_FEATURES])[0].tolist()
+    num_scaled  = num_pipe.transform(row[NUMERICAL_FEATURES])[0].tolist()
+
+    # Full transformed feature vector for classifier
+    X_proc = preprocessor.transform(row)
+    coef   = classifier.coef_[0]
+    intercept = float(classifier.intercept_[0])
+
+    feature_names = CATEGORICAL_FEATURES + NUMERICAL_FEATURES
+    processed_vals = X_proc[0].tolist()
+    coef_vals      = coef.tolist()
+
+    # Per-feature contribution = processed_value × coefficient
+    contributions = [round(float(pv) * float(cv), 6)
+                     for pv, cv in zip(processed_vals, coef_vals)]
+
+    # Linear decision score directly from classifier decision_function
+    linear_score = float(classifier.decision_function(X_proc)[0])
+
+    # Calibrated probability directly from model pipeline
+    probability = float(PIPELINE.predict_proba(row)[0][1])
+
+    approved   = probability >= THRESHOLD
+    prediction = "Approved" if approved else "Rejected"
+
+    # Raw input values in feature_names order
+    raw_values = [
+        data["Gender"], data["Married"], data["Dependents"],
+        data["Education"], data["Self_Employed"], data["Property_Area"],
+        str(data["ApplicantIncome"]), str(data["CoapplicantIncome"]),
+        str(loan_amount), str(data["Loan_Amount_Term"]),
+        str(data["Credit_History"]),
+    ]
+
+    return {
+        "prediction":         prediction,
+        "probability":        round(probability, 6),
+        "linear_score":       round(linear_score, 4),
+        "linear_score_exact": round(linear_score, 6),
+        "threshold":          THRESHOLD,
+        "model":              "Logistic Regression (scikit-learn)",
+        "approved":           approved,
+        "feature_names":      feature_names,
+        "raw_values":         raw_values,
+        "processed_values":   [round(v, 6) for v in processed_vals],
+        "coefficients":       [round(v, 6) for v in coef_vals],
+        "intercept":          round(intercept, 6),
+        "contributions":      contributions,
+        "raw_loan_amount":    raw_loan,
+        "model_loan_amount":  loan_amount,
+        "cat_encoded":        [round(v, 4) for v in cat_encoded],
+        "num_scaled":         [round(v, 4) for v in num_scaled],
+        "applicant": {
+            "Gender":            data["Gender"],
+            "Married":           data["Married"],
+            "Dependents":        data["Dependents"],
+            "Education":         data["Education"],
+            "Self_Employed":     data["Self_Employed"],
+            "Property_Area":     data["Property_Area"],
+            "ApplicantIncome":   float(data["ApplicantIncome"]),
+            "CoapplicantIncome": float(data["CoapplicantIncome"]),
+            "LoanAmount":        raw_loan,
+            "Loan_Amount_Term":  float(data["Loan_Amount_Term"]),
+            "Credit_History":    float(data["Credit_History"]),
+        },
+    }
+
+
 # ─── /predict endpoint ───────────────────────────────────────────────────────
 @app.route("/predict", methods=["POST"])
 def predict():
@@ -270,44 +370,8 @@ def predict():
     if errors:
         return jsonify({"error": "Validation failed.", "details": errors}), 422
 
-    # Normalize LoanAmount if user entered in whole rupees (>= 1000)
-    raw_loan = float(data["LoanAmount"])
-    loan_amount = raw_loan / 1000.0 if raw_loan >= 1000.0 else raw_loan
-
-    # Build feature row
-    row = pd.DataFrame([{
-        "Gender":            data["Gender"],
-        "Married":           data["Married"],
-        "Dependents":        data["Dependents"],
-        "Education":         data["Education"],
-        "Self_Employed":     data["Self_Employed"],
-        "ApplicantIncome":   float(data["ApplicantIncome"]),
-        "CoapplicantIncome": float(data["CoapplicantIncome"]),
-        "LoanAmount":        loan_amount,
-        "Loan_Amount_Term":  float(data["Loan_Amount_Term"]),
-        "Credit_History":    float(data["Credit_History"]),
-        "Property_Area":     data["Property_Area"],
-    }])
-
-    # Predict using calibrated pipeline
-    proba        = float(PIPELINE.predict_proba(row)[0][1])
-    approved     = proba >= THRESHOLD
-    prediction   = "Approved" if approved else "Rejected"
-
-    # Linear score from classifier step using decision_function
-    preprocessor = PIPELINE.named_steps["preprocessor"]
-    classifier   = PIPELINE.named_steps["classifier"]
-    X_transformed = preprocessor.transform(row)
-    linear_score  = float(classifier.decision_function(X_transformed)[0])
-
-    return jsonify({
-        "prediction":   prediction,
-        "probability":  round(proba, 6),
-        "linear_score": round(linear_score, 4),
-        "threshold":    THRESHOLD,
-        "model":        "Logistic Regression (scikit-learn)",
-        "approved":     approved,
-    })
+    result = compute_full_analysis(data)
+    return jsonify(result), 200
 
 
 # ─── /health endpoint ────────────────────────────────────────────────────────
@@ -317,7 +381,6 @@ def health():
 
 
 # ─── /analyze endpoint  (Live ML visualization) ──────────────────────────────
-# Returns the full LR calculation breakdown for the /live-ml page.
 @app.route("/analyze", methods=["POST"])
 def analyze():
     if not request.is_json:
@@ -329,74 +392,8 @@ def analyze():
     if errors:
         return jsonify({"error": "Validation failed.", "details": errors}), 422
 
-    # Normalize LoanAmount if user entered in whole rupees (>= 1000)
-    raw_loan = float(data["LoanAmount"])
-    loan_amount = raw_loan / 1000.0 if raw_loan >= 1000.0 else raw_loan
-
-    row = pd.DataFrame([{
-        "Gender":            data["Gender"],
-        "Married":           data["Married"],
-        "Dependents":        data["Dependents"],
-        "Education":         data["Education"],
-        "Self_Employed":     data["Self_Employed"],
-        "ApplicantIncome":   float(data["ApplicantIncome"]),
-        "CoapplicantIncome": float(data["CoapplicantIncome"]),
-        "LoanAmount":        loan_amount,
-        "Loan_Amount_Term":  float(data["Loan_Amount_Term"]),
-        "Credit_History":    float(data["Credit_History"]),
-        "Property_Area":     data["Property_Area"],
-    }])
-
-    preprocessor = PIPELINE.named_steps["preprocessor"]
-    classifier   = PIPELINE.named_steps["classifier"]
-
-    # Transform the input row through the same pipeline
-    X_proc = preprocessor.transform(row)
-    coef   = classifier.coef_[0]
-    intercept = float(classifier.intercept_[0])
-
-    # Feature names (cat first, then num — matches ColumnTransformer order)
-    feature_names = CATEGORICAL_FEATURES + NUMERICAL_FEATURES
-
-    processed_vals = X_proc[0].tolist()
-    coef_vals      = coef.tolist()
-
-    # Per-feature contribution = processed_value × coefficient
-    contributions = [round(float(pv) * float(cv), 6)
-                     for pv, cv in zip(processed_vals, coef_vals)]
-
-    # Linear score directly from decision_function
-    linear_score = float(classifier.decision_function(X_proc)[0])
-
-    # Calibrated probability directly from model pipeline
-    probability = float(PIPELINE.predict_proba(row)[0][1])
-
-    approved   = probability >= THRESHOLD
-    prediction = "Approved" if approved else "Rejected"
-
-    # Raw input values for display
-    raw_values = [
-        data["Gender"], data["Married"], data["Dependents"],
-        data["Education"], data["Self_Employed"], data["Property_Area"],
-        str(data["ApplicantIncome"]), str(data["CoapplicantIncome"]),
-        str(loan_amount), str(data["Loan_Amount_Term"]),
-        str(data["Credit_History"]),
-    ]
-
-    return jsonify({
-        "feature_names":      feature_names,
-        "raw_values":         raw_values,
-        "processed_values":   [round(v, 6) for v in processed_vals],
-        "coefficients":       [round(v, 6) for v in coef_vals],
-        "intercept":          round(intercept, 6),
-        "contributions":      contributions,
-        "linear_score":       round(linear_score, 6),
-        "probability":        round(probability, 6),
-        "threshold":          THRESHOLD,
-        "prediction":         prediction,
-        "approved":           approved,
-        "model":              "Logistic Regression (scikit-learn)",
-    })
+    result = compute_full_analysis(data)
+    return jsonify(result), 200
 
 
 # ─── /analytics-data endpoint (Dataset & Model Analytics) ────────────────────
