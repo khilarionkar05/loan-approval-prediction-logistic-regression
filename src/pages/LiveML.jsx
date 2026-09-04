@@ -35,6 +35,13 @@ function validate(form) {
   return e;
 }
 
+/* ─── Indian Rupee formatting helper ─────────────────────────────────────── */
+function formatINR(val) {
+  const n = parseFloat(val);
+  if (isNaN(n) || n <= 0) return null;
+  return '₹' + n.toLocaleString('en-IN');
+}
+
 /* ─── Tiny field helpers ─────────────────────────────────────────────────── */
 function Sel({ id, label, value, onChange, options, error }) {
   return (
@@ -51,13 +58,18 @@ function Sel({ id, label, value, onChange, options, error }) {
     </div>
   );
 }
-function Num({ id, label, value, onChange, error, placeholder }) {
+function Num({ id, label, value, onChange, error, placeholder, hint, showINR }) {
+  const inr = showINR ? formatINR(value) : null;
   return (
     <div className="lml-field">
-      <label htmlFor={id} className="lml-label">{label}</label>
+      <div className="lml-label-row">
+        <label htmlFor={id} className="lml-label">{label}</label>
+        {inr && <span className="lml-inr-tag">{inr}</span>}
+      </div>
       <input id={id} type="number" min="0" value={value} placeholder={placeholder || ''}
         onChange={e => onChange(e.target.value)}
         className={`lml-input${error ? ' lml-input--err' : ''}`} />
+      {hint && <p className="lml-field-hint">{hint}</p>}
       {error && <p className="lml-field-err">{error}</p>}
     </div>
   );
@@ -143,15 +155,13 @@ export default function LiveML() {
     timerRef.current.forEach(clearTimeout);
 
     try {
-      const rawLoan = +form.LoanAmount;
-      const loanAmount = rawLoan >= 1000 ? rawLoan / 1000 : rawLoan;
-
       const payload = {
         Gender: form.Gender, Married: form.Married, Dependents: form.Dependents,
         Education: form.Education, Self_Employed: form.Self_Employed,
         ApplicantIncome: +form.ApplicantIncome,
         CoapplicantIncome: +(form.CoapplicantIncome) || 0,
-        LoanAmount: loanAmount, Loan_Amount_Term: +form.Loan_Amount_Term,
+        LoanAmount: +form.LoanAmount,
+        Loan_Amount_Term: +form.Loan_Amount_Term,
         Credit_History: +form.Credit_History, Property_Area: form.Property_Area,
       };
       const res = await fetch(ANALYZE_URL, {
@@ -218,9 +228,9 @@ export default function LiveML() {
               <Sel id="lml-Edu"       label="Education"     value={form.Education}     onChange={setField('Education')}     options={['Graduate','Not Graduate']} error={errors.Education} />
               <Sel id="lml-SelfEmp"   label="Self Employed" value={form.Self_Employed} onChange={setField('Self_Employed')} options={['Yes','No']}             error={errors.Self_Employed} />
               <Sel id="lml-Area"      label="Property Area" value={form.Property_Area} onChange={setField('Property_Area')} options={PROPERTY_OPTIONS}         error={errors.Property_Area} />
-              <Num id="lml-AppInc"    label="Applicant Income (₹/mo)" value={form.ApplicantIncome}   onChange={setField('ApplicantIncome')}   error={errors.ApplicantIncome}   placeholder="e.g. 5000" />
-              <Num id="lml-CoInc"     label="Co-applicant Income (₹/mo)" value={form.CoapplicantIncome} onChange={setField('CoapplicantIncome')} error={errors.CoapplicantIncome} placeholder="0 if none" />
-              <Num id="lml-Loan"      label="Loan Amount (₹ thousands)" value={form.LoanAmount}        onChange={setField('LoanAmount')}        error={errors.LoanAmount}        placeholder="e.g. 128" />
+              <Num id="lml-AppInc"    label="Applicant Income (₹/month)"    value={form.ApplicantIncome}   onChange={setField('ApplicantIncome')}   error={errors.ApplicantIncome}   placeholder="e.g. 50000" showINR />
+              <Num id="lml-CoInc"     label="Co-applicant Income (₹/month)" value={form.CoapplicantIncome} onChange={setField('CoapplicantIncome')} error={errors.CoapplicantIncome} placeholder="e.g. 20000" showINR />
+              <Num id="lml-Loan"      label="Loan Amount (₹)"               value={form.LoanAmount}        onChange={setField('LoanAmount')}        error={errors.LoanAmount}        placeholder="e.g. 500000" showINR hint="Enter the total loan amount in rupees (e.g. ₹5,00,000 → enter 500000)" />
               <Sel id="lml-Term"      label="Loan Term"     value={form.Loan_Amount_Term} onChange={setField('Loan_Amount_Term')} options={LOAN_TERM_OPTIONS}     error={errors.Loan_Amount_Term} />
               <Sel id="lml-Credit"    label="Credit History" value={form.Credit_History} onChange={setField('Credit_History')} options={CREDIT_OPTIONS}         error={errors.Credit_History} />
             </div>
@@ -496,7 +506,13 @@ export default function LiveML() {
 
         /* Field helpers */
         .lml-field { display: flex; flex-direction: column; gap: 3px; }
+        .lml-label-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
         .lml-label { font-size: 0.78rem; font-weight: 600; color: var(--text); }
+        .lml-inr-tag {
+          font-size: 0.72rem; font-weight: 700; color: var(--primary);
+          background: var(--primary-light); padding: 1px 7px;
+          border-radius: 999px; white-space: nowrap;
+        }
         .lml-input {
           padding: 7px 10px; border: 1.5px solid var(--border);
           border-radius: var(--radius); font-family: 'Inter', sans-serif;
@@ -505,6 +521,7 @@ export default function LiveML() {
         }
         .lml-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37,99,235,.12); }
         .lml-input--err  { border-color: #dc2626; }
+        .lml-field-hint  { font-size: 0.69rem; color: var(--text-muted); margin-top: 1px; line-height: 1.3; }
         .lml-field-err   { font-size: 0.7rem; color: #dc2626; }
 
         /* Actions */

@@ -48,6 +48,13 @@ function validate(form) {
   return e;
 }
 
+/* ─── Indian Rupee formatting helper ─────────────────────────────────────── */
+function formatINR(val) {
+  const n = parseFloat(val);
+  if (isNaN(n) || n <= 0) return null;
+  return '₹' + n.toLocaleString('en-IN');
+}
+
 /* ─── Tiny field helpers ─────────────────────────────────────────────────── */
 function Sel({ id, label, value, onChange, options, error }) {
   return (
@@ -64,13 +71,18 @@ function Sel({ id, label, value, onChange, options, error }) {
     </div>
   );
 }
-function Num({ id, label, value, onChange, error, placeholder }) {
+function Num({ id, label, value, onChange, error, placeholder, hint, showINR }) {
+  const inr = showINR ? formatINR(value) : null;
   return (
     <div className="lad-field">
-      <label htmlFor={id} className="lad-label">{label}</label>
+      <div className="lad-label-row">
+        <label htmlFor={id} className="lad-label">{label}</label>
+        {inr && <span className="lad-inr-tag">{inr}</span>}
+      </div>
       <input id={id} type="number" min="0" value={value} placeholder={placeholder || ''}
         onChange={e => onChange(e.target.value)}
         className={`lad-input${error ? ' lad-input--err' : ''}`} />
+      {hint && <p className="lad-field-hint">{hint}</p>}
       {error && <p className="lad-field-err">{error}</p>}
     </div>
   );
@@ -190,9 +202,6 @@ export default function LiveAnalysis() {
     });
 
     try {
-      const rawLoan = +form.LoanAmount;
-      const loanAmount = rawLoan >= 1000 ? rawLoan / 1000 : rawLoan;
-
       const payload = {
         Gender:            form.Gender,
         Married:           form.Married,
@@ -201,7 +210,7 @@ export default function LiveAnalysis() {
         Self_Employed:     form.Self_Employed,
         ApplicantIncome:   +form.ApplicantIncome,
         CoapplicantIncome: +(form.CoapplicantIncome) || 0,
-        LoanAmount:        loanAmount,
+        LoanAmount:        +form.LoanAmount,
         Loan_Amount_Term:  +form.Loan_Amount_Term,
         Credit_History:    +form.Credit_History,
         Property_Area:     form.Property_Area,
@@ -294,9 +303,9 @@ export default function LiveAnalysis() {
             {/* Financial */}
             <div className="lad-section-label" style={{ marginTop: 14 }}>Financial Details</div>
             <div className="lad-grid-2">
-              <Num id="lad-AppInc"  label="Applicant Income (₹/mo)"     value={form.ApplicantIncome}   onChange={setField('ApplicantIncome')}   error={errors.ApplicantIncome}   placeholder="e.g. 5000" />
-              <Num id="lad-CoInc"   label="Co-applicant Income (₹/mo)"  value={form.CoapplicantIncome} onChange={setField('CoapplicantIncome')} error={errors.CoapplicantIncome} placeholder="0 if none" />
-              <Num id="lad-Loan"    label="Loan Amount (₹ thousands)"   value={form.LoanAmount}        onChange={setField('LoanAmount')}        error={errors.LoanAmount}        placeholder="e.g. 128" />
+              <Num id="lad-AppInc"  label="Applicant Income (₹/month)"    value={form.ApplicantIncome}   onChange={setField('ApplicantIncome')}   error={errors.ApplicantIncome}   placeholder="e.g. 50000" showINR />
+              <Num id="lad-CoInc"   label="Co-applicant Income (₹/month)" value={form.CoapplicantIncome} onChange={setField('CoapplicantIncome')} error={errors.CoapplicantIncome} placeholder="e.g. 20000" showINR />
+              <Num id="lad-Loan"    label="Loan Amount (₹)"               value={form.LoanAmount}        onChange={setField('LoanAmount')}        error={errors.LoanAmount}        placeholder="e.g. 500000" showINR hint="Enter the total loan amount in rupees (e.g. ₹5,00,000 → enter 500000)" />
               <Sel id="lad-Term"    label="Loan Term"                    value={form.Loan_Amount_Term}  onChange={setField('Loan_Amount_Term')}  options={LOAN_TERM_OPTIONS}      error={errors.Loan_Amount_Term} />
               <Sel id="lad-Credit"  label="Credit History"               value={form.Credit_History}    onChange={setField('Credit_History')}    options={CREDIT_OPTIONS}         error={errors.Credit_History} />
             </div>
@@ -572,7 +581,13 @@ export default function LiveAnalysis() {
 
         /* Field helpers */
         .lad-field { display: flex; flex-direction: column; gap: 3px; }
+        .lad-label-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
         .lad-label { font-size: 0.76rem; font-weight: 600; color: var(--text); }
+        .lad-inr-tag {
+          font-size: 0.72rem; font-weight: 700; color: var(--primary);
+          background: var(--primary-light); padding: 1px 7px;
+          border-radius: 999px; white-space: nowrap;
+        }
         .lad-input {
           padding: 7px 10px; border: 1.5px solid var(--border);
           border-radius: var(--radius); font-family: 'Inter', sans-serif;
@@ -581,6 +596,7 @@ export default function LiveAnalysis() {
         }
         .lad-input:focus     { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37,99,235,.12); }
         .lad-input--err      { border-color: #dc2626; }
+        .lad-field-hint      { font-size: 0.69rem; color: var(--text-muted); margin-top: 1px; line-height: 1.3; }
         .lad-field-err       { font-size: 0.68rem; color: #dc2626; }
 
         /* Buttons */

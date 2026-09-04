@@ -62,11 +62,22 @@ function SelectField({ id, label, value, onChange, options, error, hint }) {
   );
 }
 
+/* ─── Indian Rupee formatting helper ─────────────────────────────────────── */
+function formatINR(val) {
+  const n = parseFloat(val);
+  if (isNaN(n) || n <= 0) return null;
+  return '₹' + n.toLocaleString('en-IN');
+}
+
 /* ─── Small helper: number input ─────────────────────────────────────────── */
-function NumberField({ id, label, value, onChange, error, hint, placeholder }) {
+function NumberField({ id, label, value, onChange, error, hint, placeholder, showINR }) {
+  const inrFormatted = showINR ? formatINR(value) : null;
   return (
     <div className="form-field">
-      <label htmlFor={id} className="field-label">{label}</label>
+      <div className="field-label-row">
+        <label htmlFor={id} className="field-label">{label}</label>
+        {inrFormatted && <span className="field-inr-tag">{inrFormatted}</span>}
+      </div>
       <input
         id={id} name={id} type="number" min="0"
         value={value} placeholder={placeholder || ''}
@@ -168,9 +179,6 @@ export default function Prediction() {
     setResult(null);
 
     try {
-      const rawLoan = parseFloat(form.LoanAmount);
-      const loanAmount = rawLoan >= 1000 ? rawLoan / 1000 : rawLoan;
-
       const payload = {
         Gender:            form.Gender,
         Married:           form.Married,
@@ -179,7 +187,7 @@ export default function Prediction() {
         Self_Employed:     form.Self_Employed,
         ApplicantIncome:   parseFloat(form.ApplicantIncome),
         CoapplicantIncome: parseFloat(form.CoapplicantIncome) || 0,
-        LoanAmount:        loanAmount,
+        LoanAmount:        parseFloat(form.LoanAmount),
         Loan_Amount_Term:  parseFloat(form.Loan_Amount_Term),
         Credit_History:    parseFloat(form.Credit_History),
         Property_Area:     form.Property_Area,
@@ -246,12 +254,12 @@ export default function Prediction() {
             <fieldset className="form-section">
               <legend className="form-section-legend">Personal Details</legend>
               <div className="form-grid-2">
-                <SelectField id="Gender"    label="Gender"         value={form.Gender}    onChange={setField('Gender')}    options={['Male','Female']}    error={errors.Gender} />
-                <SelectField id="Married"   label="Married"        value={form.Married}   onChange={setField('Married')}   options={['Yes','No']}         error={errors.Married} />
-                <SelectField id="Dependents" label="Dependents"    value={form.Dependents} onChange={setField('Dependents')} options={DEPENDENTS_OPTIONS}  error={errors.Dependents} />
-                <SelectField id="Education"  label="Education"     value={form.Education}  onChange={setField('Education')}  options={['Graduate','Not Graduate']} error={errors.Education} />
-                <SelectField id="Self_Employed" label="Self Employed" value={form.Self_Employed} onChange={setField('Self_Employed')} options={['Yes','No']} error={errors.Self_Employed} />
-                <SelectField id="Property_Area" label="Property Area" value={form.Property_Area} onChange={setField('Property_Area')} options={PROPERTY_OPTIONS} error={errors.Property_Area} />
+                <SelectField id="Gender"        label="Gender"        value={form.Gender}        onChange={setField('Gender')}        options={['Male','Female']}      error={errors.Gender} />
+                <SelectField id="Married"       label="Marital Status" value={form.Married}       onChange={setField('Married')}       options={['Yes','No']}           error={errors.Married} />
+                <SelectField id="Dependents"    label="Dependents"    value={form.Dependents}    onChange={setField('Dependents')}    options={DEPENDENTS_OPTIONS}     error={errors.Dependents} />
+                <SelectField id="Education"     label="Education"     value={form.Education}     onChange={setField('Education')}     options={['Graduate','Not Graduate']} error={errors.Education} />
+                <SelectField id="Self_Employed" label="Self Employed" value={form.Self_Employed} onChange={setField('Self_Employed')} options={['Yes','No']}           error={errors.Self_Employed} />
+                <SelectField id="Property_Area" label="Property Area" value={form.Property_Area} onChange={setField('Property_Area')} options={PROPERTY_OPTIONS}      error={errors.Property_Area} />
               </div>
             </fieldset>
 
@@ -259,9 +267,9 @@ export default function Prediction() {
             <fieldset className="form-section">
               <legend className="form-section-legend">Financial Details</legend>
               <div className="form-grid-2">
-                <NumberField id="ApplicantIncome"   label="Applicant Income (₹/month)"    value={form.ApplicantIncome}   onChange={setField('ApplicantIncome')}   error={errors.ApplicantIncome}   placeholder="e.g. 5000" />
-                <NumberField id="CoapplicantIncome" label="Co-applicant Income (₹/month)" value={form.CoapplicantIncome} onChange={setField('CoapplicantIncome')} error={errors.CoapplicantIncome} placeholder="0 if none" />
-                <NumberField id="LoanAmount"        label="Loan Amount (₹ thousands)"     value={form.LoanAmount}        onChange={setField('LoanAmount')}        error={errors.LoanAmount}        placeholder="e.g. 128" />
+                <NumberField id="ApplicantIncome"   label="Applicant Income (₹/month)"    value={form.ApplicantIncome}   onChange={setField('ApplicantIncome')}   error={errors.ApplicantIncome}   placeholder="e.g. 50000" showINR />
+                <NumberField id="CoapplicantIncome" label="Co-applicant Income (₹/month)" value={form.CoapplicantIncome} onChange={setField('CoapplicantIncome')} error={errors.CoapplicantIncome} placeholder="e.g. 20000 (0 if none)" showINR />
+                <NumberField id="LoanAmount"        label="Loan Amount (₹)"               value={form.LoanAmount}        onChange={setField('LoanAmount')}        error={errors.LoanAmount}        placeholder="e.g. 500000" hint="Enter the total loan amount in rupees (e.g. ₹5,00,000 → enter 500000)." showINR />
                 <SelectField id="Loan_Amount_Term"  label="Loan Term"                     value={form.Loan_Amount_Term}  onChange={setField('Loan_Amount_Term')}  options={LOAN_TERM_OPTIONS}      error={errors.Loan_Amount_Term} />
                 <SelectField id="Credit_History"    label="Credit History"                value={form.Credit_History}    onChange={setField('Credit_History')}    options={CREDIT_OPTIONS}         error={errors.Credit_History}   hint="1 = good credit history · 0 = poor / no history" />
               </div>
@@ -510,6 +518,20 @@ export default function Prediction() {
           display: flex;
           flex-direction: column;
           gap: 4px;
+        }
+        .field-label-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 2px;
+        }
+        .field-inr-tag {
+          font-size: 0.76rem;
+          font-weight: 700;
+          color: var(--primary);
+          background: var(--primary-light);
+          padding: 1px 7px;
+          border-radius: 4px;
         }
         .field-label {
           font-size: 0.82rem;
