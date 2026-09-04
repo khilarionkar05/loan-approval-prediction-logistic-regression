@@ -190,6 +190,9 @@ export default function LiveAnalysis() {
     });
 
     try {
+      const rawLoan = +form.LoanAmount;
+      const loanAmount = rawLoan >= 1000 ? rawLoan / 1000 : rawLoan;
+
       const payload = {
         Gender:            form.Gender,
         Married:           form.Married,
@@ -198,7 +201,7 @@ export default function LiveAnalysis() {
         Self_Employed:     form.Self_Employed,
         ApplicantIncome:   +form.ApplicantIncome,
         CoapplicantIncome: +(form.CoapplicantIncome) || 0,
-        LoanAmount:        +form.LoanAmount,
+        LoanAmount:        loanAmount,
         Loan_Amount_Term:  +form.Loan_Amount_Term,
         Credit_History:    +form.Credit_History,
         Property_Area:     form.Property_Area,

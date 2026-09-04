@@ -168,6 +168,9 @@ export default function Prediction() {
     setResult(null);
 
     try {
+      const rawLoan = parseFloat(form.LoanAmount);
+      const loanAmount = rawLoan >= 1000 ? rawLoan / 1000 : rawLoan;
+
       const payload = {
         Gender:            form.Gender,
         Married:           form.Married,
@@ -176,7 +179,7 @@ export default function Prediction() {
         Self_Employed:     form.Self_Employed,
         ApplicantIncome:   parseFloat(form.ApplicantIncome),
         CoapplicantIncome: parseFloat(form.CoapplicantIncome) || 0,
-        LoanAmount:        parseFloat(form.LoanAmount),
+        LoanAmount:        loanAmount,
         Loan_Amount_Term:  parseFloat(form.Loan_Amount_Term),
         Credit_History:    parseFloat(form.Credit_History),
         Property_Area:     form.Property_Area,

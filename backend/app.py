@@ -29,7 +29,7 @@ from sklearn.pipeline import Pipeline as SKPipeline
 
 # ─── App setup ──────────────────────────────────────────────────────────────
 app = Flask(__name__)
-CORS(app, origins=["http://localhost:5173", "http://localhost:3000"])
+CORS(app, origins=["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:3000", "http://127.0.0.1:3000"])
 
 MODEL_PATH = os.path.join(os.path.dirname(__file__), "loan_model.pkl")
 DATA_FILE  = os.path.join(os.path.dirname(__file__), "data", "loan_data.csv")
@@ -270,6 +270,10 @@ def predict():
     if errors:
         return jsonify({"error": "Validation failed.", "details": errors}), 422
 
+    # Normalize LoanAmount if user entered in whole rupees (>= 1000)
+    raw_loan = float(data["LoanAmount"])
+    loan_amount = raw_loan / 1000.0 if raw_loan >= 1000.0 else raw_loan
+
     # Build feature row
     row = pd.DataFrame([{
         "Gender":            data["Gender"],
@@ -279,22 +283,22 @@ def predict():
         "Self_Employed":     data["Self_Employed"],
         "ApplicantIncome":   float(data["ApplicantIncome"]),
         "CoapplicantIncome": float(data["CoapplicantIncome"]),
-        "LoanAmount":        float(data["LoanAmount"]),
+        "LoanAmount":        loan_amount,
         "Loan_Amount_Term":  float(data["Loan_Amount_Term"]),
         "Credit_History":    float(data["Credit_History"]),
         "Property_Area":     data["Property_Area"],
     }])
 
-    # Predict
+    # Predict using calibrated pipeline
     proba        = float(PIPELINE.predict_proba(row)[0][1])
     approved     = proba >= THRESHOLD
     prediction   = "Approved" if approved else "Rejected"
 
-    # Linear score from classifier step
+    # Linear score from classifier step using decision_function
     preprocessor = PIPELINE.named_steps["preprocessor"]
     classifier   = PIPELINE.named_steps["classifier"]
     X_transformed = preprocessor.transform(row)
-    linear_score  = float(np.dot(X_transformed, classifier.coef_[0])[0] + classifier.intercept_[0])
+    linear_score  = float(classifier.decision_function(X_transformed)[0])
 
     return jsonify({
         "prediction":   prediction,
@@ -325,6 +329,10 @@ def analyze():
     if errors:
         return jsonify({"error": "Validation failed.", "details": errors}), 422
 
+    # Normalize LoanAmount if user entered in whole rupees (>= 1000)
+    raw_loan = float(data["LoanAmount"])
+    loan_amount = raw_loan / 1000.0 if raw_loan >= 1000.0 else raw_loan
+
     row = pd.DataFrame([{
         "Gender":            data["Gender"],
         "Married":           data["Married"],
@@ -333,7 +341,7 @@ def analyze():
         "Self_Employed":     data["Self_Employed"],
         "ApplicantIncome":   float(data["ApplicantIncome"]),
         "CoapplicantIncome": float(data["CoapplicantIncome"]),
-        "LoanAmount":        float(data["LoanAmount"]),
+        "LoanAmount":        loan_amount,
         "Loan_Amount_Term":  float(data["Loan_Amount_Term"]),
         "Credit_History":    float(data["Credit_History"]),
         "Property_Area":     data["Property_Area"],
@@ -357,12 +365,11 @@ def analyze():
     contributions = [round(float(pv) * float(cv), 6)
                      for pv, cv in zip(processed_vals, coef_vals)]
 
-    # Linear score z = intercept + sum(contributions)
-    linear_score = float(np.dot(X_proc, coef)[0] + intercept)
+    # Linear score directly from decision_function
+    linear_score = float(classifier.decision_function(X_proc)[0])
 
-    # Sigmoid
-    import math
-    probability = 1.0 / (1.0 + math.exp(-linear_score))
+    # Calibrated probability directly from model pipeline
+    probability = float(PIPELINE.predict_proba(row)[0][1])
 
     approved   = probability >= THRESHOLD
     prediction = "Approved" if approved else "Rejected"
@@ -372,7 +379,7 @@ def analyze():
         data["Gender"], data["Married"], data["Dependents"],
         data["Education"], data["Self_Employed"], data["Property_Area"],
         str(data["ApplicantIncome"]), str(data["CoapplicantIncome"]),
-        str(data["LoanAmount"]), str(data["Loan_Amount_Term"]),
+        str(loan_amount), str(data["Loan_Amount_Term"]),
         str(data["Credit_History"]),
     ]
 

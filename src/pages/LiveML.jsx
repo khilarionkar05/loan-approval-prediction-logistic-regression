@@ -143,12 +143,15 @@ export default function LiveML() {
     timerRef.current.forEach(clearTimeout);
 
     try {
+      const rawLoan = +form.LoanAmount;
+      const loanAmount = rawLoan >= 1000 ? rawLoan / 1000 : rawLoan;
+
       const payload = {
         Gender: form.Gender, Married: form.Married, Dependents: form.Dependents,
         Education: form.Education, Self_Employed: form.Self_Employed,
         ApplicantIncome: +form.ApplicantIncome,
         CoapplicantIncome: +(form.CoapplicantIncome) || 0,
-        LoanAmount: +form.LoanAmount, Loan_Amount_Term: +form.Loan_Amount_Term,
+        LoanAmount: loanAmount, Loan_Amount_Term: +form.Loan_Amount_Term,
         Credit_History: +form.Credit_History, Property_Area: form.Property_Area,
       };
       const res = await fetch(ANALYZE_URL, {
