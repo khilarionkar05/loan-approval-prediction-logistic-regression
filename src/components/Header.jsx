@@ -2,12 +2,13 @@ import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 
 const NAV_LINKS = [
-  { label: 'Home',       to: '/'          },
-  { label: 'Prediction', to: '/prediction' },
-  { label: 'Live ML',    to: '/live-ml'   },
-  { label: 'Analytics',  to: '/analytics' },
-  { label: 'Model',      to: '/model'     },
-  { label: 'About',      to: '/about'     },
+  { label: 'Home',              to: '/'              },
+  { label: 'Prediction',        to: '/prediction'    },
+  { label: 'Live ML',           to: '/live-ml'       },
+  { label: 'Live Analysis',     to: '/live-analysis' },
+  { label: 'Analytics',         to: '/analytics'     },
+  { label: 'Model Information', to: '/model-info'    },
+  { label: 'About',             to: '/about'         },
 ];
 
 export default function Header() {

@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Header        from './components/Header';
 import Footer        from './components/Footer';
 import Home          from './pages/Home';
@@ -26,9 +26,10 @@ export default function App() {
           <Route path="/prediction"    element={<Prediction />} />
           <Route path="/live-ml"       element={<LiveML />} />
           <Route path="/live-analysis" element={<LiveAnalysis />} />
-          <Route path="/analytics"     element={<PlaceholderPage title="Analytics" />} />
-          <Route path="/model"         element={<PlaceholderPage title="Model" />} />
-          <Route path="/about"         element={<PlaceholderPage title="About" />} />
+          <Route path="/analytics"     element={<PlaceholderPage title="Analytics Dashboard" />} />
+          <Route path="/model-info"    element={<PlaceholderPage title="Model Information" />} />
+          <Route path="/model"         element={<Navigate to="/model-info" replace />} />
+          <Route path="/about"         element={<PlaceholderPage title="About Project" />} />
         </Routes>
         <Footer />
       </div>
