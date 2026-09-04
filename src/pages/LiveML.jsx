@@ -123,8 +123,7 @@ export default function LiveML() {
 
               {/* STEP 1: Applicant Input Data */}
               <StepCard num="1" title="Applicant Input Data"
-                desc="Raw values submitted by the applicant."
-                visible={visStep >= 1}>
+                desc="Raw values submitted by the applicant.">
                 <div className="lml-input-grid">
                   <div className="lml-input-chip"><span className="chip-lbl">Gender:</span> <strong>{r.applicant?.Gender || r.raw_values?.[0]}</strong></div>
                   <div className="lml-input-chip"><span className="chip-lbl">Married:</span> <strong>{r.applicant?.Married || r.raw_values?.[1]}</strong></div>
@@ -142,8 +141,7 @@ export default function LiveML() {
 
               {/* STEP 2: Input Normalization */}
               <StepCard num="2" title="Input Normalization (Model Units)"
-                desc="Converting real-world rupee inputs to the exact units expected by the trained dataset."
-                visible={visStep >= 2}>
+                desc="Converting real-world rupee inputs to the exact units expected by the trained dataset.">
                 <div className="norm-card">
                   <div className="norm-row">
                     <div className="norm-col">
@@ -170,8 +168,7 @@ export default function LiveML() {
 
               {/* STEP 3: Feature Preparation / Encoding */}
               <StepCard num="3" title="Feature Preparation & Encoding"
-                desc="Categorical variables encoded into numerical indices."
-                visible={visStep >= 3}>
+                desc="Categorical variables encoded into numerical indices.">
                 <div className="feat-table">
                   <div className="feat-row feat-row--head">
                     <span>Categorical Feature</span><span>Raw Input</span><span>Encoded Index</span>
@@ -188,8 +185,7 @@ export default function LiveML() {
 
               {/* STEP 4: Preprocessing & StandardScaler */}
               <StepCard num="4" title="Numerical Preprocessing (StandardScaler)"
-                desc="Numerical features scaled to zero mean and unit variance: z = (x - μ) / σ."
-                visible={visStep >= 4}>
+                desc="Numerical features scaled to zero mean and unit variance: z = (x - μ) / σ.">
                 <div className="feat-table">
                   <div className="feat-row feat-row--head">
                     <span>Numerical Feature</span><span>Model Input (x)</span><span>Scaled Value (z)</span>
@@ -209,8 +205,7 @@ export default function LiveML() {
 
               {/* STEP 5: Logistic Regression Model */}
               <StepCard num="5" title="Logistic Regression Model Information"
-                desc="Trained binary classification model configuration and parameters."
-                visible={visStep >= 5}>
+                desc="Trained binary classification model configuration and parameters.">
                 <div className="model-summary-grid">
                   <div className="summary-item">
                     <span className="summary-lbl">Model Architecture:</span>
@@ -233,8 +228,7 @@ export default function LiveML() {
 
               {/* STEP 6: Feature Coefficients */}
               <StepCard num="6" title="Learned Feature Coefficients (β)"
-                desc="Weights learned by Logistic Regression during dataset training."
-                visible={visStep >= 6}>
+                desc="Weights learned by Logistic Regression during dataset training.">
                 <div className="coef-table">
                   <div className="feat-row feat-row--head">
                     <span>Feature</span><span>Coefficient (β)</span>
@@ -258,8 +252,7 @@ export default function LiveML() {
 
               {/* STEP 7: Feature Contributions */}
               <StepCard num="7" title="Weighted Feature Contributions (βᵢ × xᵢ)"
-                desc="Each feature's transformed value multiplied by its trained coefficient."
-                visible={visStep >= 7}>
+                desc="Each feature's transformed value multiplied by its trained coefficient.">
                 <div className="contrib-table">
                   <div className="feat-row feat-row--head">
                     <span>Feature</span><span>Value × Coef</span><span>Contribution</span>
@@ -287,8 +280,7 @@ export default function LiveML() {
 
               {/* STEP 8: Linear Decision Score (z) */}
               <StepCard num="8" title="Linear Decision Score  z = β₀ + Σ(βᵢxᵢ)"
-                desc="The raw log-odds score produced by the linear combination."
-                visible={visStep >= 8}>
+                desc="The raw log-odds score produced by the linear combination.">
                 <div className="math-box">
                   <div className="math-row">
                     <span className="math-label">z</span>
@@ -303,8 +295,7 @@ export default function LiveML() {
 
               {/* STEP 9: Sigmoid & Probability */}
               <StepCard num="9" title="Sigmoid Activation  σ(z) = 1 / (1 + e⁻ᶻ)"
-                desc="Converts the real-valued decision score into a calibrated probability."
-                visible={visStep >= 9}>
+                desc="Converts the real-valued decision score into a calibrated probability.">
                 <div className="math-box">
                   <div className="math-row">
                     <span className="math-label">σ({Number(r.linear_score).toFixed(4)})</span>
@@ -336,8 +327,7 @@ export default function LiveML() {
 
               {/* STEP 10: Threshold Decision & Final Verdict */}
               <StepCard num="10" title="Decision Threshold & Final Verdict"
-                desc="Compares predicted probability against classification threshold θ = 0.50."
-                visible={visStep >= 10}>
+                desc="Compares predicted probability against classification threshold θ = 0.50.">
                 <div className="decision-box">
                   <div className="threshold-row">
                     <div className="th-item">
