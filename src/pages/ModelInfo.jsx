@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
+import { API_ENDPOINTS } from '../config/api';
 
-const API_URL = 'http://localhost:5000/analytics-data';
+const API_URL = API_ENDPOINTS.analytics;
 
 export default function ModelInfo() {
   const [modelData, setModelData] = useState(null);

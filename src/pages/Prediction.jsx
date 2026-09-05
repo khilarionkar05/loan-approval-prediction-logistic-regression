@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { API_ENDPOINTS } from '../config/api';
 
 /* ─── Field definitions — must match backend ALLOWED_VALUES exactly ───────── */
 const DEPENDENTS_OPTIONS  = ['0', '1', '2', '3+'];
@@ -34,7 +35,7 @@ const INITIAL_FORM = {
   Property_Area:     '',
 };
 
-const API_URL = 'http://localhost:5000/predict';
+const API_URL = API_ENDPOINTS.predict;
 
 /* ─── Small helper: select field ─────────────────────────────────────────── */
 function SelectField({ id, label, value, onChange, options, error, hint }) {

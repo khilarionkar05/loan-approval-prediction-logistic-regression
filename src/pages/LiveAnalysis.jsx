@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import { API_ENDPOINTS } from '../config/api';
 
 const STORAGE_KEY = 'loanPredictMLAnalysis';
-const TRAINING_DATA_URL = 'http://localhost:5000/training-data';
+const TRAINING_DATA_URL = API_ENDPOINTS.trainingData;
 
 /* ── Helper to load stored prediction analysis ── */
 function loadStoredAnalysis() {

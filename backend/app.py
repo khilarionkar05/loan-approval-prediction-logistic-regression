@@ -16,9 +16,11 @@ import numpy as np
 import pandas as pd
 import joblib
 import os
+from pathlib import Path
 from typing import List
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+from werkzeug.exceptions import HTTPException
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
@@ -29,11 +31,29 @@ from sklearn.pipeline import Pipeline as SKPipeline
 
 # ─── App setup ──────────────────────────────────────────────────────────────
 app = Flask(__name__)
-CORS(app, origins=["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:3000", "http://127.0.0.1:3000"])
+CORS(app, origins=[
+    "https://khilarionkar05.github.io",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+])
 
-MODEL_PATH = os.path.join(os.path.dirname(__file__), "loan_model.pkl")
-DATA_FILE  = os.path.join(os.path.dirname(__file__), "data", "loan_data.csv")
+BACKEND_DIR = Path(__file__).resolve().parent
+MODEL_PATH = BACKEND_DIR / "loan_model.pkl"
+DATA_FILE = BACKEND_DIR / "data" / "loan_data.csv"
 THRESHOLD  = 0.50   # classification threshold
+
+
+@app.errorhandler(HTTPException)
+def handle_http_error(error):
+    return jsonify({"error": error.description}), error.code
+
+
+@app.errorhandler(Exception)
+def handle_unexpected_error(error):
+    app.logger.exception("Unhandled backend error", exc_info=error)
+    return jsonify({"error": "Internal server error."}), 500
 
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
 
@@ -519,4 +539,5 @@ def training_data():
 
 # ─── Run ─────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    port = int(os.environ.get("PORT", "5000"))
+    app.run(host="0.0.0.0", port=port, debug=True)
