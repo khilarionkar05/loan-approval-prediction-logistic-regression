@@ -11,7 +11,7 @@ import About         from './pages/About';
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={import.meta.env.BASE_URL}>
       <div className="page-wrapper">
         <Header />
         <Routes>
