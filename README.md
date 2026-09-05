@@ -2,14 +2,11 @@
 
 LoanPredict AI is a full-stack machine learning application that predicts loan approval outcomes with a saved scikit-learn Logistic Regression pipeline. The React and Vite frontend provides interactive prediction, analytics, and model-visualization pages, while a Flask REST API performs validation and inference.
 
-## 🚀 Live Demo
+## 🚀 Live Website Demo
 
-- **Frontend:** [GitHub Pages](https://khilarionkar05.github.io/loan-approval-prediction-logistic-regression/)
-- **Backend:** [Render service](https://loan-approval-backend-live.onrender.com)
-- **Health check:** [`/health`](https://loan-approval-backend-live.onrender.com/health)
-- **Repository:** [GitHub](https://github.com/khilarionkar05/loan-approval-prediction-logistic-regression)
+👉 **[Try the Live Application](https://khilarionkar05.github.io/loan-approval-prediction-logistic-regression/)**
 
-The frontend is deployed on GitHub Pages and the Flask ML backend is deployed on Render.
+Explore the complete Loan Approval Prediction System directly in your browser.
 
 ## Project Overview
 
