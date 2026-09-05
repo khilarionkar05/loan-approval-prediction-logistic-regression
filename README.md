@@ -6,6 +6,8 @@ LoanPredict AI is a full-stack machine learning application that predicts loan a
 
 👉 **[Try the Live Application](https://khilarionkar05.github.io/loan-approval-prediction-logistic-regression/)**
 
+⚠️ **Note:** The backend is hosted on Render's free tier. After opening the website, please wait **up to 1 minute** for the application to fully load if the backend is waking up.
+
 Explore the complete Loan Approval Prediction System directly in your browser.
 
 ## Project Overview
