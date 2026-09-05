@@ -1,4 +1,4 @@
-# Loan Approval Prediction Using Logistic Regression
+# 🏦 Loan Approval Prediction Using Logistic Regression
 
 LoanPredict AI is a full-stack machine learning application that predicts loan approval outcomes with a saved scikit-learn Logistic Regression pipeline. The React and Vite frontend provides interactive prediction, analytics, and model-visualization pages, while a Flask REST API performs validation and inference.
 
@@ -44,6 +44,7 @@ Logistic Regression is used because it is a suitable, interpretable method for b
 | API | REST API over JSON |
 | Frontend hosting | GitHub Pages |
 | Backend hosting | Render |
+| CI/CD | GitHub Actions |
 | Version control | Git, GitHub |
 
 ## System Architecture
@@ -132,6 +133,7 @@ loan-approval-prediction-logistic-regression/
 ├── package.json
 ├── render.yaml
 ├── vite.config.js
+├── LICENSE
 └── README.md
 ```
 
@@ -315,6 +317,14 @@ React UI
 - Add authentication if the application becomes a multi-user service
 - Add more detailed monitoring and analytics
 
-## License
+## 📄 License
 
-No `LICENSE` file is currently included in this repository.
+This project is licensed under the MIT License.
+
+See the [LICENSE](LICENSE) file for details.
+
+## 👨‍💻 Author
+
+**Onkar Khilari**
+
+[GitHub](https://github.com/khilarionkar05)
