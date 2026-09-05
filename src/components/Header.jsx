@@ -25,7 +25,7 @@ export default function Header() {
       <div className="header-inner">
         {/* Brand */}
         <NavLink to="/" className="brand" onClick={() => setMenuOpen(false)}>
-          <span className="material-symbols-outlined brand-icon">analytics</span>
+          <img className="brand-logo" src={`${import.meta.env.BASE_URL}load%20logo.png`} alt="LoanPredict AI logo" />
           <span className="brand-name">LoanPredict AI</span>
         </NavLink>
 
@@ -121,10 +121,11 @@ export default function Header() {
           flex-shrink: 0;
           text-decoration: none;
         }
-        .brand-icon {
-          font-size: 26px;
-          color: var(--primary);
-          font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 24;
+        .brand-logo {
+          width: 32px;
+          height: 32px;
+          object-fit: contain;
+          flex-shrink: 0;
         }
         .brand-name {
           font-size: 1.2rem;

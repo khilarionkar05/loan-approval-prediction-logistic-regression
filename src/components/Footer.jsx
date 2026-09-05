@@ -21,7 +21,7 @@ export default function Footer() {
         {/* Column 1+2: Brand + Description + Copyright */}
         <div className="footer-brand-col">
           <Link to="/" className="footer-brand">
-            <span className="material-symbols-outlined footer-brand-icon">analytics</span>
+            <img className="footer-brand-logo" src={`${import.meta.env.BASE_URL}load%20logo.png`} alt="LoanPredict AI logo" />
             <span className="footer-brand-name">LoanPredict AI</span>
           </Link>
           <p className="footer-desc">
@@ -83,10 +83,11 @@ export default function Footer() {
           margin-bottom: 14px;
           text-decoration: none;
         }
-        .footer-brand-icon {
-          font-size: 22px;
-          color: var(--primary);
-          font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 24;
+        .footer-brand-logo {
+          width: 28px;
+          height: 28px;
+          object-fit: contain;
+          flex-shrink: 0;
         }
         .footer-brand-name {
           font-size: 1.05rem;
