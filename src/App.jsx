@@ -6,7 +6,10 @@ import Prediction    from './pages/Prediction';
 import LiveML        from './pages/LiveML';
 import LiveAnalysis  from './pages/LiveAnalysis';
 import Analytics     from './pages/Analytics';
+
+
 import ModelInfo     from './pages/ModelInfo';
+
 import About         from './pages/About';
 
 export default function App() {
