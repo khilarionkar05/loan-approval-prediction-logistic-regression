@@ -18,17 +18,11 @@ export default function Footer() {
   return (
     <footer className="site-footer">
       <div className="footer-inner">
-        {/* Column 1+2: Brand + Description + Copyright */}
+        {/* Column 1+2: Brand + Copyright */}
         <div className="footer-brand-col">
           <Link to="/" className="footer-brand">
             <img className="footer-brand-logo" src={`${import.meta.env.BASE_URL}load%20logo.png`} alt="LoanPredict AI logo" />
           </Link>
-          <div className="footer-brand-content">
-            <p className="footer-desc">
-              An educational tool demonstrating binary classification for loan approval
-              using Logistic Regression.
-            </p>
-          </div>
         </div>
 
         {/* Column 3: Project */}
@@ -88,17 +82,11 @@ export default function Footer() {
           text-decoration: none;
         }
         .footer-brand-logo {
-          width: 96px;
-          height: 96px;
-          object-fit: contain;
+          width: 128px;
+          max-width: 100%;
+          height: auto;
+          display: block;
           flex-shrink: 0;
-        }
-        .footer-desc {
-          font-size: 0.875rem;
-          color: var(--text-muted);
-          line-height: 1.65;
-          max-width: 380px;
-          margin-bottom: 16px;
         }
         .footer-copy {
           grid-column: 1 / -1;
@@ -160,9 +148,6 @@ export default function Footer() {
           }
           .footer-brand {
             justify-self: center;
-          }
-          .footer-brand-content {
-            text-align: center;
           }
           .footer-copy {
             margin-left: -16px;
