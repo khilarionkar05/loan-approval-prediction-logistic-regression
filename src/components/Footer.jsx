@@ -18,11 +18,20 @@ export default function Footer() {
   return (
     <footer className="site-footer">
       <div className="footer-inner">
-        {/* Column 1+2: Brand + Copyright */}
+        {/* Column 1+2: Brand + Description + Copyright */}
         <div className="footer-brand-col">
           <Link to="/" className="footer-brand">
             <img className="footer-brand-logo" src={`${import.meta.env.BASE_URL}load%20logo.png`} alt="LoanPredict AI logo" />
+            <span className="footer-brand-name">LoanPredict AI</span>
           </Link>
+          <p className="footer-desc">
+            An educational tool demonstrating binary classification for loan approval
+            using Logistic Regression.
+          </p>
+          <p className="footer-copy">
+            © 2026 LoanPredict AI. All rights reserved.<br />
+            Semester Mini Project 2026–2027.
+          </p>
         </div>
 
         {/* Column 3: Project */}
@@ -48,10 +57,6 @@ export default function Footer() {
             ))}
           </ul>
         </div>
-
-        <p className="footer-copy">
-          © 2026 LoanPredict AI. All rights reserved. Semester Mini Project 2026–2027.
-        </p>
       </div>
 
       <style>{`
@@ -71,35 +76,38 @@ export default function Footer() {
         }
 
         /* ---- Brand Column ---- */
-        .footer-brand-col {
-          display: grid;
-          grid-template-columns: auto minmax(0, 1fr);
-          align-items: start;
-          column-gap: 20px;
-        }
         .footer-brand {
-          display: block;
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 14px;
           text-decoration: none;
         }
         .footer-brand-logo {
-          width: 128px;
-          max-width: 100%;
-          height: auto;
-          display: block;
+          width: 28px;
+          height: 28px;
+          object-fit: contain;
           flex-shrink: 0;
         }
+        .footer-brand-name {
+          font-size: 1.05rem;
+          font-weight: 700;
+          color: var(--text);
+          letter-spacing: -0.02em;
+        }
+        .footer-desc {
+          font-size: 0.875rem;
+          color: var(--text-muted);
+          line-height: 1.65;
+          max-width: 380px;
+          margin-bottom: 16px;
+        }
         .footer-copy {
-          grid-column: 1 / -1;
-          min-width: 0;
-          width: 100vw;
-          margin-left: -24px;
           font-size: 0.78rem;
           color: var(--text-light);
           line-height: 1.7;
           text-transform: uppercase;
           letter-spacing: 0.03em;
-          text-align: center;
-          white-space: nowrap;
         }
 
         /* ---- Links Columns ---- */
@@ -141,17 +149,6 @@ export default function Footer() {
             grid-template-columns: 1fr;
             padding: 36px 16px 28px;
             gap: 28px;
-          }
-          .footer-brand-col {
-            grid-template-columns: 1fr;
-            row-gap: 16px;
-          }
-          .footer-brand {
-            justify-self: center;
-          }
-          .footer-copy {
-            margin-left: -16px;
-            font-size: 0.5rem;
           }
         }
       `}</style>
