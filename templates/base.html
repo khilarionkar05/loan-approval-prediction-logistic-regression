@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}LoanPredict AI{% endblock %} — Loan Approval Prediction</title>
+  <meta name="description" content="An educational tool demonstrating binary classification for loan approval using Logistic Regression." />
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='logo.png') }}" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+  {% block head %}{% endblock %}
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════
+     HEADER
+═══════════════════════════════════════════════════ -->
+<header class="site-header" id="site-header">
+  <div class="header-inner">
+
+    <!-- Brand -->
+    <a href="{{ url_for('home') }}" class="brand">
+      <img class="brand-logo" src="{{ url_for('static', filename='logo.png') }}" alt="LoanPredict AI logo" />
+      <span class="brand-name">LoanPredict AI</span>
+    </a>
+
+    <!-- Desktop nav -->
+    <nav class="desktop-nav" aria-label="Main navigation">
+      <a href="{{ url_for('home') }}"        class="nav-link {% if request.endpoint == 'home' %}nav-link--active{% endif %}">Home</a>
+      <a href="{{ url_for('prediction') }}"  class="nav-link {% if request.endpoint == 'prediction' %}nav-link--active{% endif %}">Prediction</a>
+      <a href="{{ url_for('live_ml') }}"     class="nav-link {% if request.endpoint == 'live_ml' %}nav-link--active{% endif %}">Live ML</a>
+      <a href="{{ url_for('live_analysis') }}" class="nav-link {% if request.endpoint == 'live_analysis' %}nav-link--active{% endif %}">ML Visualization</a>
+      <a href="{{ url_for('analytics') }}"   class="nav-link {% if request.endpoint == 'analytics' %}nav-link--active{% endif %}">Analytics</a>
+      <a href="{{ url_for('model_info') }}"  class="nav-link {% if request.endpoint == 'model_info' %}nav-link--active{% endif %}">Model Information</a>
+      <a href="{{ url_for('about') }}"       class="nav-link {% if request.endpoint == 'about' %}nav-link--active{% endif %}">About</a>
+    </nav>
+
+    <!-- Desktop CTA -->
+    <a href="{{ url_for('prediction') }}" class="btn-predict">
+      Start Prediction
+      <span class="material-symbols-outlined btn-icon">arrow_forward</span>
+    </a>
+
+    <!-- Hamburger -->
+    <button class="hamburger" id="hamburger" aria-label="Toggle menu" aria-expanded="false">
+      <span class="material-symbols-outlined" id="hamburger-icon">menu</span>
+    </button>
+  </div>
+
+  <!-- Mobile menu -->
+  <div class="mobile-menu" id="mobile-menu" hidden>
+    <nav class="mobile-nav" aria-label="Mobile navigation">
+      <a href="{{ url_for('home') }}"          class="mobile-nav-link {% if request.endpoint == 'home' %}mobile-nav-link--active{% endif %}">Home</a>
+      <a href="{{ url_for('prediction') }}"    class="mobile-nav-link {% if request.endpoint == 'prediction' %}mobile-nav-link--active{% endif %}">Prediction</a>
+      <a href="{{ url_for('live_ml') }}"       class="mobile-nav-link {% if request.endpoint == 'live_ml' %}mobile-nav-link--active{% endif %}">Live ML</a>
+      <a href="{{ url_for('live_analysis') }}" class="mobile-nav-link {% if request.endpoint == 'live_analysis' %}mobile-nav-link--active{% endif %}">ML Visualization</a>
+      <a href="{{ url_for('analytics') }}"     class="mobile-nav-link {% if request.endpoint == 'analytics' %}mobile-nav-link--active{% endif %}">Analytics</a>
+      <a href="{{ url_for('model_info') }}"    class="mobile-nav-link {% if request.endpoint == 'model_info' %}mobile-nav-link--active{% endif %}">Model Information</a>
+      <a href="{{ url_for('about') }}"         class="mobile-nav-link {% if request.endpoint == 'about' %}mobile-nav-link--active{% endif %}">About</a>
+    </nav>
+    <a href="{{ url_for('prediction') }}" class="mobile-btn-predict">
+      Start Prediction
+      <span class="material-symbols-outlined btn-icon">arrow_forward</span>
+    </a>
+  </div>
+</header>
+
+<!-- ═══════════════════════════════════════════════════
+     PAGE CONTENT
+═══════════════════════════════════════════════════ -->
+<div class="page-wrapper">
+  {% block content %}{% endblock %}
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     FOOTER
+═══════════════════════════════════════════════════ -->
+<footer class="site-footer">
+  <div class="footer-inner">
+    <!-- Brand column -->
+    <div class="footer-brand-col">
+      <a href="{{ url_for('home') }}" class="footer-brand">
+        <img class="footer-brand-logo" src="{{ url_for('static', filename='logo.png') }}" alt="LoanPredict AI logo" />
+        <span class="footer-brand-name">LoanPredict AI</span>
+      </a>
+      <p class="footer-desc">
+        An educational tool demonstrating binary classification for loan approval
+        using Logistic Regression.
+      </p>
+      <p class="footer-copy">
+        &copy; 2026 LoanPredict AI. All rights reserved.<br />
+        Semester Mini Project 2026–2027.
+      </p>
+    </div>
+
+    <!-- Project links -->
+    <div class="footer-links-col">
+      <h3 class="footer-col-heading">Project</h3>
+      <ul class="footer-links-list">
+        <li><a href="{{ url_for('home') }}"        class="footer-link">Home</a></li>
+        <li><a href="{{ url_for('prediction') }}"  class="footer-link">Prediction Model</a></li>
+        <li><a href="{{ url_for('live_ml') }}"     class="footer-link">Live ML</a></li>
+        <li><a href="{{ url_for('model_info') }}"  class="footer-link">Methodology</a></li>
+      </ul>
+    </div>
+
+    <!-- Legal links -->
+    <div class="footer-links-col">
+      <h3 class="footer-col-heading">Legal &amp; Info</h3>
+      <ul class="footer-links-list">
+        <li><a href="#" class="footer-link">Academic Disclaimer</a></li>
+        <li><a href="#" class="footer-link">Privacy Policy</a></li>
+        <li><a href="#" class="footer-link">Terms of Service</a></li>
+        <li><a href="#" class="footer-link">Data Sources</a></li>
+      </ul>
+    </div>
+  </div>
+</footer>
+
+<!-- Hamburger toggle script — 8 lines, no framework needed -->
+<script>
+  const hamburger = document.getElementById('hamburger');
+  const mobileMenu = document.getElementById('mobile-menu');
+  const icon = document.getElementById('hamburger-icon');
+  hamburger.addEventListener('click', function () {
+    const open = !mobileMenu.hidden;
+    mobileMenu.hidden = open;
+    icon.textContent = open ? 'menu' : 'close';
+    hamburger.setAttribute('aria-expanded', String(!open));
+  });
+</script>
+
+{% block scripts %}{% endblock %}
+</body>
+</html>
